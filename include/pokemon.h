@@ -1006,7 +1006,6 @@ static inline enum ReturnToIdleOWE OWE_GetReturnToIdleFromSpecies(enum Species s
     return gOWESpeciesBehavior[behavior].returnToIdle;
 }
 
-u8 GetCurrentLevelCap(void);
 bool8 AutoLevelMonToCap(struct Pokemon *mon);
 
 #endif // GUARD_POKEMON_H

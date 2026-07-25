@@ -6906,7 +6906,7 @@ bool32 HasShedinjaHPHandling(enum Species species)
     return FALSE;
 }
 
-u8 GetCurrentLevelCap(void)
+u32 GetCurrentLevelCap(void)
 {
     static const u8 sLevelCaps[] = {
         15, // 0 Badges: Roxanne
@@ -6943,8 +6943,8 @@ u8 GetCurrentLevelCap(void)
 
 bool8 AutoLevelMonToCap(struct Pokemon *mon)
 {
-    u8 targetLevel = GetCurrentLevelCap();
-    u8 currentLevel = GetMonData(mon, MON_DATA_LEVEL);
+    u32 targetLevel = GetCurrentLevelCap();
+    u32 currentLevel = GetMonData(mon, MON_DATA_LEVEL);
 
     // Skip if mon is empty, an egg, or already at/above cap
     if (currentLevel >= targetLevel 
