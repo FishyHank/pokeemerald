@@ -146,7 +146,7 @@ static const struct TrainerHillTrainer sTrainerHillTrainerTemplates_JP[] = {
             [3] = {
                 .species = SPECIES_CACTURNE,
                 .heldItem = ITEM_QUICK_CLAW,
-                .moves = { MOVE_GIGA_DRAIN, MOVE_FAINT_ATTACK, MOVE_THUNDER_PUNCH, MOVE_GROWTH },
+                .moves = { MOVE_GIGA_DRAIN, MOVE_FEINT_ATTACK, MOVE_THUNDER_PUNCH, MOVE_GROWTH },
                 .hpEV = 55,
                 .attackEV = 0,
                 .defenseEV = 100,
@@ -375,7 +375,11 @@ static const struct TrainerHillTrainer sTrainerHillTrainerTemplates_JP[] = {
 
 static u8 GetTrainerHillUnkVal(void)
 {
+#if FREE_TRAINER_HILL == FALSE
     return (gSaveBlock1Ptr->trainerHill.unused + 1) % 256;
+#else
+    return 0;
+#endif //FREE_TRAINER_HILL
 }
 
 static bool32 ValidateTrainerChecksum(struct EReaderTrainerHillTrainer *hillTrainer)
@@ -661,16 +665,8 @@ int EReaderHandleTransfer(u8 mode, size_t size, const void *data, void *recvBuff
 
             if (sSendRecvMgr.xferState != EREADER_XFER_CHK)
             {
-                if (sSendRecvMgr.isParent && sCounter1 > 2)
-                {
-                    EnableSio();
-                    sSendRecvMgr.xferState = EREADER_XFER_CHK;
-                }
-                else
-                {
-                    EnableSio();
-                    sSendRecvMgr.xferState = EREADER_XFER_CHK;
-                }
+                EnableSio();
+                sSendRecvMgr.xferState = EREADER_XFER_CHK;
             }
         }
         break;

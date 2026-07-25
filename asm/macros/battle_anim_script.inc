@@ -1,11 +1,11 @@
 @ commands
 
-	.macro loadspritegfx tag:req
+	.macro unloadspritegfx tag:req
 	.byte 0x0
 	.2byte \tag
 	.endm
 
-	.macro unloadspritegfx tag:req
+	.macro unloadspritepal tag:req
 	.byte 0x1
 	.2byte \tag
 	.endm
@@ -271,6 +271,73 @@
 	.byte 0x2f
 	.endm
 
+	@ same as createvisualtask except takes in battlerargindex, which is the battle anim arg index of the battler to loop through
+	.macro createvisualtaskontargets addr:req, priority:req, battlerargindex:req, argv:vararg
+	.byte 0x30
+	.4byte \addr
+	.byte \priority
+	.byte \battlerargindex
+	.byte (.Lcreatetask_\@_2 - .Lcreatetask_\@_1) / 2	@ num_args
+.Lcreatetask_\@_1:
+	.2byte \argv
+.Lcreatetask_\@_2:
+	.endm
+
+	@ same as createsprite except takes in battlerargindex, which is the battle anim arg index of the battler to loop through
+	.macro createspriteontargets template:req, anim_battler:req, subpriority_offset:req, battlerargindex:req, argv:vararg
+	.byte 0x31
+	.4byte \template
+	.if \anim_battler == ANIM_TARGET
+	.byte ANIMSPRITE_IS_TARGET | (\subpriority_offset & 0x7F)
+	.else
+	.byte (\subpriority_offset & 0x7F)
+	.endif
+	.byte \battlerargindex
+	.byte (.Lsprite_\@_2 - .Lsprite_\@_1) / 2
+.Lsprite_\@_1:
+	.2byte \argv
+.Lsprite_\@_2:
+	.endm
+
+	@ does not overwrite gBattleAnimArgs[battlerargindex], some sprite templates are too dependent on the value (e.g. heal block)
+	.macro createspriteontargets_onpos template:req, anim_battler:req, subpriority_offset:req, battlerargindex:req, argv:vararg
+	.byte 0x32
+	.4byte \template
+	.if \anim_battler == ANIM_TARGET
+	.byte ANIMSPRITE_IS_TARGET | (\subpriority_offset & 0x7F)
+	.else
+	.byte (\subpriority_offset & 0x7F)
+	.endif
+	.byte \battlerargindex
+	.byte (.Lsprite_\@_2 - .Lsprite_\@_1) / 2
+.Lsprite_\@_1:
+	.2byte \argv
+.Lsprite_\@_2:
+	.endm
+
+	.macro jumpifmovetypeequal type:req, jumpInstr:req
+	.byte 0x33
+	.byte \type
+	.4byte \jumpInstr
+	.endm
+
+	.macro createdragondartsprite anim_battler:req, subpriority_offset:req, argv:vararg
+	.byte 0x34
+	.if \anim_battler == ANIM_TARGET
+	.byte ANIMSPRITE_IS_TARGET | (\subpriority_offset & 0x7F)
+	.else
+	.byte (\subpriority_offset & 0x7F)
+	.endif
+	.byte (.Lsprite_\@_2 - .Lsprite_\@_1) / 2
+.Lsprite_\@_1:
+	.2byte \argv
+.Lsprite_\@_2:
+	.endm
+
+	.macro unloadallspritepals
+	.byte 0x35
+	.endm
+
 @ useful macros
 	.macro jumpreteq value:req, ptr:req
 	jumpargeq ARG_RET_ID, \value, \ptr
@@ -282,6 +349,11 @@
 
 	.macro jumpretfalse ptr:req
 	jumpreteq FALSE, \ptr
+	.endm
+
+	.macro jumpifdoublebattle ptr:req
+	createvisualtask AnimTask_IsDoubleBattle, 0
+	jumprettrue \ptr
 	.endm
 
 @ createsprite wrappers
@@ -390,6 +462,10 @@
 
 	.macro create_poison_powder_particle_sprite anim_battler:req, subpriority_offset:req, x:req, y:req, duration:req, y_velocity:req, wave_amplitude:req, wave_speed:req
 	createsprite gPoisonPowderParticleSpriteTemplate, \anim_battler, \subpriority_offset, \x, \y, \duration, 256 * \y_velocity, \wave_amplitude, \wave_speed
+	.endm
+
+	.macro create_magic_powder_particle_sprite anim_battler:req, subpriority_offset:req, x:req, y:req, duration:req, y_velocity:req, wave_amplitude:req, wave_speed:req
+	createsprite gMagicPowderBluePowderTemplate, \anim_battler, \subpriority_offset, \x, \y, \duration, 256 * \y_velocity, \wave_amplitude, \wave_speed
 	.endm
 
 	.macro create_power_absorption_orb_sprite anim_battler:req, subpriority_offset:req, x:req, y:req, duration:req
@@ -524,6 +600,10 @@
 	createsprite gFistFootSpriteTemplate, \anim_battler, \subpriority_offset, \x, \y, \duration, \initPosition, 1
 	.endm
 
+	.macro create_narrow_foot_sprite anim_battler:req, subpriority_offset:req, x:req, y:req, duration:req, initPosition=ANIM_TARGET
+	createsprite gFistFootSpriteTemplate, \anim_battler, \subpriority_offset, \x, \y, \duration, \initPosition, 2
+	.endm
+
 	.macro create_electric_puff_sprite anim_battler:req, subpriority_offset:req, relative_to:req, x:req, y:req
 	createsprite gElectricPuffSpriteTemplate, \anim_battler, \subpriority_offset, \relative_to, \x, \y
 	.endm
@@ -579,9 +659,10 @@
 	createvisualtask AnimTask_FlashAnimTagWithColor, \priority, \tag, \delay, \num_blends, \color1, \blend_y1, \color2, \blend_y2
 	.endm
 
-	.macro invert_screen_color priority=2, scenery:req, attacker:req, target:req
+	@ NOTE: This function is different on expansion compared to pret
+	.macro invert_screen_color priority=2, scenery:req
 	@ NOTE: These generate 0x000 or 0x101 to match, but the code checks for '& 0x100'.
-	createvisualtask AnimTask_InvertScreenColor, \priority, (\scenery << 8) | \scenery, (\attacker << 8) | \attacker, (\target << 8) | \target
+	createvisualtask AnimTask_InvertScreenColor, \priority, \scenery
 	.endm
 
 	.macro tint_palettes priority=2, scenery:req, attacker:req, target:req, duration:req, color:req
