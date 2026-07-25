@@ -1,6 +1,12 @@
 #ifndef GUARD_BATTLE_CONTROLLERS_H
 #define GUARD_BATTLE_CONTROLLERS_H
 
+struct MovePpInfo
+{
+    u16 moves[MAX_MON_MOVES];
+    u8 pp[MAX_MON_MOVES];
+    u8 ppBonuses;
+};
 typedef void (*BattleControllerFunc)(enum BattlerId battler);
 
 enum {
