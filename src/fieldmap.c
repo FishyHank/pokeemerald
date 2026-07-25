@@ -48,7 +48,7 @@ static void LoadSavedMapView(void);
 static bool8 SkipCopyingMetatileFromSavedMap(u16 *mapBlock, u16 mapWidth, u8 yMode);
 static const struct MapConnection *GetIncomingConnection(enum Connection direction, int x, int y);
 static bool8 IsPosInIncomingConnectingMap(enum Connection direction, int x, int y, const struct MapConnection *connection);
-static bool8 IsCoordInIncomingConnectingMap(int coord, int srcMax, int destMax, int offset);
+static bool8 IsCoordInIncomingConnectingMap(s32 coord, s32 srcMax, s32 destMax, s32 offset);
 
 static inline u16 GetBorderBlockAt(int x, int y)
 {
