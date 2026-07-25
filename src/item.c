@@ -544,13 +544,6 @@ static inline void NONNULL BagPocket_MoveItemSlot(struct BagPocket *pocket, u32 
         // Move the saved "from" to "to"
         BagPocket_SetSlotData(pocket, to, fromSlot);
     }
-    else
-    {
-        for (i = (s16)from; i > (s16)to; i--)
-            itemSlots[i] = itemSlots[i - 1];
-    }
-    
-    itemSlots[to] = firstSlot;
 }
 
 void MoveItemSlotInPocket(enum Pocket pocketId, u32 from, u32 to)
