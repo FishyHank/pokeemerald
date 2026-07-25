@@ -3887,7 +3887,6 @@ static void Cmd_getexp(void)
     case 1: // calculate experience points to redistribute
         {
             u32 orderId = 0;
-            u32 calculatedExp = 0;
             u32 *exp = &gBattleStruct->expValue;
             u32 sentInBits = gSentPokesToOpponent[(gBattlerFainted & 2) >> 1];
             u32 expShareBits = 0;
@@ -3922,42 +3921,9 @@ static void Cmd_getexp(void)
             if (orderId < PARTY_SIZE)
                 gBattleStruct->expGettersOrder[orderId] = PARTY_SIZE;
 
-            calculatedExp = gSpeciesInfo[faintedSpecies].expYield * gBattleMons[gBattlerFainted].level;
-            if (GetConfig(B_SCALED_EXP) >= GEN_5 && GetConfig(B_SCALED_EXP) != GEN_6)
-                calculatedExp /= 5;
-            else
-                calculatedExp /= 7;
-
-            if (GetConfig(B_TRAINER_EXP_MULTIPLIER) <= GEN_7 && gBattleTypeFlags & BATTLE_TYPE_TRAINER)
-                calculatedExp = (calculatedExp * 150) / 100;
-
-            if (GetConfig(B_SPLIT_EXP) < GEN_6)
-            {
-                if (viaExpShare) // at least one mon is getting exp via exp share
-                {
-                    *exp = SAFE_DIV(calculatedExp / 2, viaSentIn);
-                    if (*exp == 0)
-                        *exp = 1;
-
-                    gBattleStruct->expShareExpValue = calculatedExp / 2 / viaExpShare;
-                    if (gBattleStruct->expShareExpValue == 0)
-                        gBattleStruct->expShareExpValue = 1;
-                }
-                else
-                {
-                    *exp = SAFE_DIV(calculatedExp, viaSentIn);
-                    if (*exp == 0)
-                        *exp = 1;
-                    gBattleStruct->expShareExpValue = 0;
-                }
-            }
-            else
-            {
-                *exp = calculatedExp;
-                gBattleStruct->expShareExpValue = calculatedExp / 2;
-                if (gBattleStruct->expShareExpValue == 0)
-                    gBattleStruct->expShareExpValue = 1;
-            }
+            // Force EXP values to 0
+            *exp = 0;
+            gBattleStruct->expShareExpValue = 0;
 
             gBattleScripting.getexpState++;
             gBattleStruct->expOrderId = 0;
@@ -4070,7 +4036,7 @@ static void Cmd_getexp(void)
                         gBattleStruct->teamGotExpMsgPrinted = TRUE;
                     }
 
-                    MonGainEVs(&gParties[B_TRAINER_PLAYER][*expMonId], faintedSpecies);
+                    //MonGainEVs(&gParties[B_TRAINER_PLAYER][*expMonId], faintedSpecies);
                 }
                 gBattleScripting.getexpState++;
             }
