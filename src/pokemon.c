@@ -6905,3 +6905,71 @@ bool32 HasShedinjaHPHandling(enum Species species)
         return TRUE;
     return FALSE;
 }
+
+u8 GetCurrentLevelCap(void)
+{
+    static const u8 sLevelCaps[] = {
+        15, // 0 Badges: Roxanne
+        19, // 1 Badge:  Brawly
+        24, // 2 Badges: Wattson
+        29, // 3 Badges: Flannery
+        31, // 4 Badges: Norman
+        33, // 5 Badges: Winona
+        42, // 6 Badges: Tate & Liza
+        46, // 7 Badges: Juan
+        58  // 8 Badges: Wallace / Champion
+    };
+
+    // 1. Defeated Steven in Meteor Falls -> Lv. 100 (Uncapped for Battle Frontier)
+    if (FlagGet(FLAG_DEFEATED_METEOR_FALLS_STEVEN))
+        return 100;
+
+    // 2. Beaten the Champion -> Lv. 78 (Steven Stone Cap)
+    if (FlagGet(FLAG_SYS_GAME_CLEAR))
+        return 78;
+
+    // 3. Main Story Badge Checks (0 to 8 Badges)
+    u8 badges = 0;
+    u8 i;
+
+    for (i = 0; i < 8; i++)
+    {
+        if (FlagGet(FLAG_BADGE01_GET + i))
+            badges++;
+    }
+
+    return sLevelCaps[badges];
+}
+
+bool8 AutoLevelMonToCap(struct Pokemon *mon)
+{
+    u8 targetLevel = GetCurrentLevelCap();
+    u8 currentLevel = GetMonData(mon, MON_DATA_LEVEL);
+
+    // Skip if mon is empty, an egg, or already at/above cap
+    if (currentLevel >= targetLevel 
+     || GetMonData(mon, MON_DATA_SPECIES) == SPECIES_NONE 
+     || GetMonData(mon, MON_DATA_IS_EGG))
+        return FALSE;
+
+    u16 species = GetMonData(mon, MON_DATA_SPECIES);
+    u8 growthRate = gSpeciesInfo[species].growthRate;
+    u32 targetExp = gExperienceTables[growthRate][targetLevel];
+
+    u16 oldMaxHp = GetMonData(mon, MON_DATA_MAX_HP);
+    u16 currentHp = GetMonData(mon, MON_DATA_HP);
+
+    // Apply target level's EXP and recalculate base stats
+    SetMonData(mon, MON_DATA_EXP, &targetExp);
+    CalculateMonStats(mon);
+
+    // Adjust HP so the Pokémon doesn't stay at old max HP
+    u16 newMaxHp = GetMonData(mon, MON_DATA_MAX_HP);
+    if (currentHp > 0)
+    {
+        u16 newHp = currentHp + (newMaxHp - oldMaxHp);
+        SetMonData(mon, MON_DATA_HP, &newHp);
+    }
+
+    return TRUE; // Leveled successfully
+}

@@ -83,6 +83,7 @@
 
 enum {
     MENU_SUMMARY,
+    MENU_AUTO_LEVEL,
     MENU_SWITCH,
     MENU_CANCEL1,
     MENU_ITEM,
@@ -8617,4 +8618,27 @@ s8 Test_UpdatePartySelectionSingleLayout(s8 slotId, s8 movementDir, bool8 choose
     sPartyMenuInternal = savedInternal;
     return slotId;
 }
+
+static void CursorCb_AutoLevel(u8 taskId)
+{
+    u8 slot = gPartyMenu.slotId;
+    struct Pokemon *mon = &gPlayerParty[slot];
+
+    if (AutoLevelMonToCap(mon))
+    {
+        PlaySE(SE_EXP);
+        PartyMenuRemoveWindow(&gPartyMenu.windowId[0]);
+        UpdatePartyMonDisplay(slot);
+        DisplayPartyMenuMessage(gText_PkmnRaisedToLevelCap);
+        ScheduleBgCopyTilemapToVram(2);
+    }
+    else
+    {
+        PlaySE(SE_FAILURE);
+        DisplayPartyMenuMessage(gText_PkmnAlreadyAtLevelCap);
+    }
+
+    gTasks[taskId].func = Task_HandleOamAndPromptInput;
+}
+
 #endif
