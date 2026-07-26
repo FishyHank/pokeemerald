@@ -8118,7 +8118,7 @@ static void Cmd_copymovepermanently(void)
             }
             movePPData.ppBonuses = gBattleMons[gBattlerAttacker].ppBonuses;
 
-            BtlController_EmitSetMonData(gBattlerAttacker, B_COMM_TO_CONTROLLER, REQUEST_MOVES_PP_BATTLE, 0, sizeof(movePpData), &movePpData);
+            BtlController_EmitSetMonData(gBattlerAttacker, B_COMM_TO_CONTROLLER, REQUEST_MOVES_PP_BATTLE, 0, sizeof(movePPData), &movePPData);
             MarkBattlerForControllerExec(gBattlerAttacker);
 
             PREPARE_MOVE_BUFFER(gBattleTextBuff1, gLastPrintedMoves[gBattlerTarget])

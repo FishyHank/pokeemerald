@@ -4,6 +4,8 @@
 #include "rtc.h"
 #include "constants/wild_encounter.h"
 #include "wild_encounter_ow.h"
+#define WILD_CHECK_REPEL    (1 << 0)
+#define WILD_CHECK_KEEN_EYE (1 << 1)
 
 #define HEADER_NONE 0xFFFF
 
