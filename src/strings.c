@@ -1181,3 +1181,4 @@ const u8 gText_OakThisIsListOfPokemon[] = _("This is a list of your POKéMON,\n{
 const u8 gText_AutoLevel[] = _("AUTO LEVEL");
 const u8 gText_PkmnRaisedToLevelCap[] = _("Raised to the current level cap!");
 const u8 gText_PkmnAlreadyAtLevelCap[] = _("Already at or above the level cap.");
+const u8 gText_RaiseToLevelCapPrompt[] = _("Raise to the current level cap?");

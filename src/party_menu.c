@@ -126,6 +126,7 @@ enum {
     ACTIONS_SUMMARY_ONLY,
     ACTIONS_ITEM,
     ACTIONS_MAIL,
+    ACTIONS_LEVEL_TO_CAP, //added for level to cap functionality
     ACTIONS_REGISTER,
     ACTIONS_TRADE,
     ACTIONS_SPIN_TRADE,
@@ -133,6 +134,8 @@ enum {
     ACTIONS_ROTOM_CATALOG,
     ACTIONS_ZYGARDE_CUBE,
 };
+
+static const u8 sText_LevelToCap[] = _("LEVEL TO CAP"); // added for level to cap functionality
 
 enum {
     PARTY_BOX_LEFT_COLUMN,
@@ -474,6 +477,9 @@ static void CursorCb_Register(u8);
 static void CursorCb_Trade1(u8);
 static void CursorCb_Trade2(u8);
 static void CursorCb_Toss(u8);
+static void CursorCb_AutoLevel(u8);
+static void Task_AutoLevelYesNo(u8);
+static void Task_HandleAutoLevelYesNoInput(u8);
 static void CursorCb_FieldMove(u8);
 static void CursorCb_CatalogBulb(u8);
 static void CursorCb_CatalogOven(u8);
@@ -2980,6 +2986,9 @@ static void SetPartyMonFieldSelectionActions(struct Pokemon *mons, u8 slotId)
         else
             AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_ITEM);
     }
+    if (!GetMonData(&mons[slotId], MON_DATA_IS_EGG))
+        AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_AUTO_LEVEL);
+
     AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_CANCEL1);
 }
 
@@ -8603,6 +8612,63 @@ static u8 IndividualToCombinedPartyId(u8 index, enum BattlerId battler)
     return index;
 }
 
+static void CursorCb_AutoLevel(u8 taskId)
+{
+    struct Pokemon *mon = &gParties[B_TRAINER_PLAYER][gPartyMenu.slotId];
+
+    PlaySE(SE_SELECT);
+    PartyMenuRemoveWindow(&sPartyMenuInternal->windowId[0]);
+
+    if (GetMonData(mon, MON_DATA_LEVEL) >= GetCurrentLevelCap())
+    {
+        DisplayPartyMenuMessage(gText_PkmnAlreadyAtLevelCap, TRUE);
+        gTasks[taskId].func = Task_ReturnToChooseMonAfterText;
+    }
+    else
+    {
+        DisplayPartyMenuMessage(gText_RaiseToLevelCapPrompt, TRUE);
+        gTasks[taskId].func = Task_AutoLevelYesNo;
+    }
+}
+
+static void Task_AutoLevelYesNo(u8 taskId)
+{
+    if (IsPartyMenuTextPrinterActive() != TRUE)
+    {
+        PartyMenuDisplayYesNoMenu();
+        gTasks[taskId].func = Task_HandleAutoLevelYesNoInput;
+    }
+}
+
+static void Task_HandleAutoLevelYesNoInput(u8 taskId)
+{
+    struct Pokemon *mon = &gParties[B_TRAINER_PLAYER][gPartyMenu.slotId];
+
+    switch (Menu_ProcessInputNoWrapClearOnChoose())
+    {
+    case 0: // Yes
+        if (AutoLevelMonToCap(mon))
+        {
+            PlaySE(SE_EXP);
+            UpdateMonDisplayInfoAfterRareCandy(gPartyMenu.slotId, mon);
+            DisplayPartyMenuMessage(gText_PkmnRaisedToLevelCap, FALSE);
+        }
+        else
+        {
+            PlaySE(SE_FAILURE);
+            DisplayPartyMenuMessage(gText_PkmnAlreadyAtLevelCap, FALSE);
+        }
+        gTasks[taskId].func = Task_ReturnToChooseMonAfterText;
+        break;
+    case MENU_B_PRESSED:
+        PlaySE(SE_SELECT);
+        // fallthrough
+    case 1: // No
+        gTasks[taskId].func = Task_ReturnToChooseMonAfterText;
+        break;
+    }
+}
+
 #if TESTING
 s8 Test_UpdatePartySelectionSingleLayout(s8 slotId, s8 movementDir, bool8 chooseHalf, u8 lastSelectedSlot)
 {
@@ -8617,28 +8683,6 @@ s8 Test_UpdatePartySelectionSingleLayout(s8 slotId, s8 movementDir, bool8 choose
 
     sPartyMenuInternal = savedInternal;
     return slotId;
-}
-
-static void CursorCb_AutoLevel(u8 taskId)
-{
-    u8 slot = gPartyMenu.slotId;
-    struct Pokemon *mon = &gPlayerParty[slot];
-
-    if (AutoLevelMonToCap(mon))
-    {
-        PlaySE(SE_EXP);
-        PartyMenuRemoveWindow(&gPartyMenu.windowId[0]);
-        UpdatePartyMonDisplay(slot);
-        DisplayPartyMenuMessage(gText_PkmnRaisedToLevelCap);
-        ScheduleBgCopyTilemapToVram(2);
-    }
-    else
-    {
-        PlaySE(SE_FAILURE);
-        DisplayPartyMenuMessage(gText_PkmnAlreadyAtLevelCap);
-    }
-
-    gTasks[taskId].func = Task_HandleOamAndPromptInput;
 }
 
 #endif

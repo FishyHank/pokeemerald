@@ -3896,6 +3896,7 @@ void BattlePutTextOnWindow(const u8 *text, u8 windowId)
         CopyWindowToVram(windowId, COPYWIN_FULL);
     }
 }
+u8 GetCurrentPPToMaxPPState(u8 currentPP, u8 maxPP);
 
 void SetPpNumbersPaletteInMoveSelection(enum BattlerId battler)
 {
@@ -3904,7 +3905,7 @@ void SetPpNumbersPaletteInMoveSelection(enum BattlerId battler)
     u8 var;
 
     if (!gBattleStruct->zmove.viewing)
-        var = GetCurrentPpToMaxPpState(chooseMoveStruct->currentPp[gMoveSelectionCursor[battler]],
+        var = GetCurrentPPToMaxPPState(chooseMoveStruct->currentPp[gMoveSelectionCursor[battler]],
                          chooseMoveStruct->maxPp[gMoveSelectionCursor[battler]]);
     else
         var = 3;
