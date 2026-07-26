@@ -8659,6 +8659,7 @@ static void Task_HandleAutoLevelYesNoInput(u8 taskId)
             PlaySE(SE_EXP);
             UpdateMonDisplayInfoAfterRareCandy(gPartyMenu.slotId, mon);
             gPartyMenuUseExitCallback = TRUE;
+            gPartyMenu.data2 = 1;
 
             GetMonNickname(mon, gStringVar1);
             ConvertIntToDecimalStringN(gStringVar2, sFinalLevel, STR_CONV_MODE_LEFT_ALIGN, 3);
