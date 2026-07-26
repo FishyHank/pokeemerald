@@ -8643,22 +8643,40 @@ static void Task_AutoLevelYesNo(u8 taskId)
 static void Task_HandleAutoLevelYesNoInput(u8 taskId)
 {
     struct Pokemon *mon = &gParties[B_TRAINER_PLAYER][gPartyMenu.slotId];
+    s16 *arrayPtr = sPartyMenuInternal->data;
 
     switch (Menu_ProcessInputNoWrapClearOnChoose())
     {
     case 0: // Yes
+        sInitialLevel = GetMonData(mon, MON_DATA_LEVEL);
+        BufferMonStatsToTaskData(mon, arrayPtr);
+
         if (AutoLevelMonToCap(mon))
         {
+            sFinalLevel = GetMonData(mon, MON_DATA_LEVEL);
+            BufferMonStatsToTaskData(mon, &sPartyMenuInternal->data[NUM_STATS]);
+
             PlaySE(SE_EXP);
             UpdateMonDisplayInfoAfterRareCandy(gPartyMenu.slotId, mon);
-            DisplayPartyMenuMessage(gText_PkmnRaisedToLevelCap, FALSE);
+            gPartyMenuUseExitCallback = TRUE;
+
+            GetMonNickname(mon, gStringVar1);
+            ConvertIntToDecimalStringN(gStringVar2, sFinalLevel, STR_CONV_MODE_LEFT_ALIGN, 3);
+            StringExpandPlaceholders(gStringVar4, gText_PkmnElevatedToLvVar2);
+
+            PlayFanfareByFanfareNum(FANFARE_LEVEL_UP);
+            DisplayPartyMenuMessage(gStringVar4, TRUE);
+            ScheduleBgCopyTilemapToVram(2);
+            gTasks[taskId].func = Task_DisplayLevelUpStatsPg1;
         }
         else
         {
+            sInitialLevel = 0;
+            sFinalLevel = 0;
             PlaySE(SE_FAILURE);
             DisplayPartyMenuMessage(gText_PkmnAlreadyAtLevelCap, FALSE);
+            gTasks[taskId].func = Task_ReturnToChooseMonAfterText;
         }
-        gTasks[taskId].func = Task_ReturnToChooseMonAfterText;
         break;
     case MENU_B_PRESSED:
         PlaySE(SE_SELECT);
