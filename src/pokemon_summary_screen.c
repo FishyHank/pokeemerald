@@ -4056,6 +4056,18 @@ static void Task_PrintBattleMoves(u8 taskId)
     data[0]++;
 }
 
+u8 GetCurrentPpToMaxPpState(u8 currentPp, u8 maxPp)
+{
+    if (currentPp == maxPp)
+        return 0;
+    else if (currentPp == 0)
+        return 2;
+    else if (currentPp <= maxPp / 2)
+        return 1;
+    else
+        return 0;
+}
+
 static void PrintMoveNameAndPP(u8 moveIndex)
 {
     u8 pp;
@@ -4077,7 +4089,7 @@ static void PrintMoveNameAndPP(u8 moveIndex)
         DynamicPlaceholderTextUtil_SetPlaceholderPtr(1, gStringVar2);
         DynamicPlaceholderTextUtil_ExpandPlaceholders(gStringVar4, sMovesPPLayout);
         text = gStringVar4;
-        ppState = GetCurrentPPToMaxPPState(summary->pp[moveIndex], pp) + 9;
+        ppState = GetCurrentPpToMaxPpState(summary->pp[moveIndex], pp) + 9;
         x = GetStringRightAlignXOffset(FONT_NORMAL, text, 44);
     }
     else

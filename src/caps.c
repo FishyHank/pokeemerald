@@ -7,6 +7,14 @@
 
 u32 GetCurrentLevelCap(void)
 {
+    // Custom Nuzlocke Post-Game Milestones:
+    if (FlagGet(FLAG_DEFEATED_METEOR_FALLS_STEVEN))
+        return 100;
+
+    if (FlagGet(FLAG_SYS_GAME_CLEAR))
+        return 78;
+
+    // Standard Badge Caps (15 through 58):
     static const u32 sLevelCapFlagMap[][2] =
     {
         {FLAG_BADGE01_GET, 15},

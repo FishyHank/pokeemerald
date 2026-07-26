@@ -133,7 +133,7 @@ static void SetUpItemUseCallback(u8 taskId)
     if (gTasks[taskId].tUsingRegisteredKeyItem && type == (ITEM_USE_PARTY_MENU - 1))
     {
         FadeScreen(FADE_TO_BLACK, 0);
-        gPartyMenu.data1 = DATA1_PARTY_MENU_FROM_FIELD;
+        gPartyMenu.data[0] = DATA1_PARTY_MENU_FROM_FIELD;
         gTasks[taskId].func = Task_PartyMenuItemUseFromField;
     }
     else
@@ -1368,7 +1368,7 @@ bool32 CannotUseItemsInBattle(enum Item itemId, struct Pokemon *mon)
             if (i == MAX_MON_MOVES)
                 cannotUse = TRUE;
         }
-        else if (GetMonData(mon, MON_DATA_PP1 + gPartyMenu.data1) == CalculatePPWithBonus(GetMonData(mon, MON_DATA_MOVE1 + gPartyMenu.data1), GetMonData(mon, MON_DATA_PP_BONUSES), gPartyMenu.data1))
+        else if (GetMonData(mon, MON_DATA_PP1 + gPartyMenu.data[0]) == CalculatePPWithBonus(GetMonData(mon, MON_DATA_MOVE1 + gPartyMenu.data1), GetMonData(mon, MON_DATA_PP_BONUSES), gPartyMenu.data1))
         {
             cannotUse = TRUE;
         }

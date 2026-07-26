@@ -3568,7 +3568,7 @@ bool8 PokemonUseItemEffects(struct Pokemon *mon, enum Item item, u8 partyIndex, 
 
                     if (B_RARE_CANDY_CAP && B_EXP_CAP_TYPE == EXP_CAP_HARD)
                     {
-                        u32 currentLevelCap = GetCurrentLevelCap();
+                       u32 currentLevelCap = GetCurrentLevelCap();
                         if (dataUnsigned > gExperienceTables[gSpeciesInfo[species].growthRate][currentLevelCap])
                             dataUnsigned = gExperienceTables[gSpeciesInfo[species].growthRate][currentLevelCap];
                     }
@@ -6904,41 +6904,6 @@ bool32 HasShedinjaHPHandling(enum Species species)
     if (P_BASE_HP_1_SHEDINJA_HANDLING && GetSpeciesBaseHP(species) == 1)
         return TRUE;
     return FALSE;
-}
-
-u32 GetCurrentLevelCap(void)
-{
-    static const u8 sLevelCaps[] = {
-        15, // 0 Badges: Roxanne
-        19, // 1 Badge:  Brawly
-        24, // 2 Badges: Wattson
-        29, // 3 Badges: Flannery
-        31, // 4 Badges: Norman
-        33, // 5 Badges: Winona
-        42, // 6 Badges: Tate & Liza
-        46, // 7 Badges: Juan
-        58  // 8 Badges: Wallace / Champion
-    };
-
-    // 1. Defeated Steven in Meteor Falls -> Lv. 100 (Uncapped for Battle Frontier)
-    if (FlagGet(FLAG_DEFEATED_METEOR_FALLS_STEVEN))
-        return 100;
-
-    // 2. Beaten the Champion -> Lv. 78 (Steven Stone Cap)
-    if (FlagGet(FLAG_SYS_GAME_CLEAR))
-        return 78;
-
-    // 3. Main Story Badge Checks (0 to 8 Badges)
-    u8 badges = 0;
-    u8 i;
-
-    for (i = 0; i < 8; i++)
-    {
-        if (FlagGet(FLAG_BADGE01_GET + i))
-            badges++;
-    }
-
-    return sLevelCaps[badges];
 }
 
 bool8 AutoLevelMonToCap(struct Pokemon *mon)

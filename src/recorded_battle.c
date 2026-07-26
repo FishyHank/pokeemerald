@@ -723,21 +723,21 @@ void RecordedBattle_CheckMovesetChanges(u8 mode)
                     for (j = 0; j < MAX_MON_MOVES; j++)
                     {
                         moveSlots[j] = RecordedBattle_GetBattlerAction(RECORDED_BYTE, battler);
-                        movePp.moves[j] = gBattleMons[battler].moves[moveSlots[j]];
-                        movePp.currentPp[j] = gBattleMons[battler].pp[moveSlots[j]];
-                        movePp.maxPp[j] = ppBonuses[moveSlots[j]];
+                        movePP.moves[j] = gBattleMons[battler].moves[moveSlots[j]];
+                        movePP.currentPp[j] = gBattleMons[battler].pp[moveSlots[j]];
+                        movePP.maxPp[j] = ppBonuses[moveSlots[j]];
                         mimickedMoveSlots[j] = (gBattleMons[battler].volatiles.mimickedMoves & (1u << j)) >> j;
                     }
                     for (j = 0; j < MAX_MON_MOVES; j++)
                     {
                         gBattleMons[battler].moves[j] = movePP.moves[j];
-                        gBattleMons[battler].pp[j] = movePP.currentPP[j];
+                        gBattleMons[battler].pp[j] = movePP.currentPp[j];
                     }
                     gBattleMons[battler].ppBonuses = 0;
                     gBattleMons[battler].volatiles.mimickedMoves = 0;
                     for (j = 0; j < MAX_MON_MOVES; j++)
                     {
-                        gBattleMons[battler].ppBonuses |= movePp.maxPp[j] << (j << 1);
+                        gBattleMons[battler].ppBonuses |= movePP.maxPp[j] << (j << 1);
                         gBattleMons[battler].volatiles.mimickedMoves |= mimickedMoveSlots[j] << j;
                     }
 
@@ -749,18 +749,18 @@ void RecordedBattle_CheckMovesetChanges(u8 mode)
 
                         for (j = 0; j < MAX_MON_MOVES; j++)
                         {
-                            movePp.moves[j] = GetMonData(mon, MON_DATA_MOVE1 + moveSlots[j]);
-                            movePp.currentPp[j] = GetMonData(mon, MON_DATA_PP1 + moveSlots[j]);
-                            movePp.maxPp[j] = ppBonuses[moveSlots[j]];
+                            movePP.moves[j] = GetMonData(mon, MON_DATA_MOVE1 + moveSlots[j]);
+                            movePP.currentPp[j] = GetMonData(mon, MON_DATA_PP1 + moveSlots[j]);
+                            movePP.maxPp[j] = ppBonuses[moveSlots[j]];
                         }
                         for (j = 0; j < MAX_MON_MOVES; j++)
                         {
-                            SetMonData(mon, MON_DATA_MOVE1 + j, &movePp.moves[j]);
-                            SetMonData(mon, MON_DATA_PP1 + j, &movePp.currentPp[j]);
+                            SetMonData(mon, MON_DATA_MOVE1 + j, &movePP.moves[j]);
+                            SetMonData(mon, MON_DATA_PP1 + j, &movePP.currentPp[j]);
                         }
                         ppBonusSet = 0;
                         for (j = 0; j < MAX_MON_MOVES; j++)
-                            ppBonusSet |= movePP.maxPP[j] << (j << 1);
+                            ppBonusSet |= movePP.maxPp[j] << (j << 1);
 
                         SetMonData(mon, MON_DATA_PP_BONUSES, &ppBonusSet);
                     }

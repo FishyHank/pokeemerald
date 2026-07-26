@@ -55,5 +55,6 @@ void ShowSelectMovePokemonSummaryScreen(struct Pokemon *mons, u8 monIndex, void 
 u8 GetMoveSlotToReplace(void);
 void SummaryScreen_SetAnimDelayTaskId(u8 taskId);
 bool32 CheckRelearnerStateFlag(enum MoveRelearnerStates state);
+u8 GetCurrentPpToMaxPpState(u8 currentPp, u8 maxPp);
 
 #endif // GUARD_POKEMON_SUMMARY_SCREEN_H
