@@ -34,6 +34,7 @@
 #include "overworld.h"
 #include "palette.h"
 #include "party_menu.h"
+#include "script_pokemon_util.h"
 #include "pokeblock.h"
 #include "pokemon.h"
 #include "script.h"
@@ -83,6 +84,9 @@ static void ItemUseOnFieldCB_Honey(u8 taskId);
 static bool32 IsValidLocationForVsSeeker(void);
 
 static const u8 sText_CantDismountBike[] = _("You can't dismount your BIKE here.{PAUSE_UNTIL_PRESS}");
+static const u8 sText_RepelToggleOn[] = _("Wild Pokémon will no longer\nappear.{PAUSE_UNTIL_PRESS}");
+static const u8 sText_RepelToggleOff[] = _("Wild Pokémon will appear\nnormally again.{PAUSE_UNTIL_PRESS}");
+static const u8 sText_PartyHealed[] = _("Your party was fully\nrestored!{PAUSE_UNTIL_PRESS}");
 static const u8 sText_ItemFinderNearby[] = _("Huh?\nThe ITEMFINDER's responding!\pThere's an item buried around here!{PAUSE_UNTIL_PRESS}");
 static const u8 sText_ItemFinderOnTop[] = _("Oh!\nThe ITEMFINDER's shaking wildly!{PAUSE_UNTIL_PRESS}");
 static const u8 sText_ItemFinderNothing[] = _("… … … …Nope!\nThere's no response.{PAUSE_UNTIL_PRESS}");
@@ -1008,6 +1012,56 @@ static void Task_UseRepel(u8 taskId)
             DisplayItemMessageInBattlePyramid(taskId, gStringVar4, Task_CloseBattlePyramidBagMessage);
     }
 }
+// Reusable key-item Repel: flips a persistent flag instead of setting a step
+// counter, so it never expires and is never consumed. IsWildLevelAllowedByRepel
+// (src/wild_encounter.c) honors the flag directly, which is why no step count is
+// written here - writing one would make the effect tick down and expire.
+void ItemUseOutOfBattle_InfiniteRepel(u8 taskId)
+{
+    bool8 turningOn = !FlagGet(FLAG_INFINITE_REPEL_ACTIVE);
+
+    if (turningOn)
+        FlagSet(FLAG_INFINITE_REPEL_ACTIVE);
+    else
+        FlagClear(FLAG_INFINITE_REPEL_ACTIVE);
+
+    PlaySE(SE_PC_LOGIN);
+    StringExpandPlaceholders(gStringVar4, turningOn ? sText_RepelToggleOn : sText_RepelToggleOff);
+
+    if (!gTasks[taskId].tUsingRegisteredKeyItem)
+    {
+        DisplayItemMessage(taskId, FONT_NORMAL, gStringVar4, CloseItemMessage);
+    }
+    else
+    {
+        // Used via the registered-key-item shortcut, so there's no bag screen to
+        // print into - show it as a field message instead.
+        DisplayItemMessageOnField(taskId, gStringVar4, Task_CloseCantUseKeyItemMessage);
+    }
+}
+
+// Portable Poke Center: a reusable key item that fully restores the party's HP,
+// PP and status. Uses the same HealPlayerParty() the Poke Center nurse calls, so
+// it stays in step with anything that heal does (Tera Orb recharge, and box
+// healing when OW_PC_HEAL is Gen 8+) instead of reimplementing it.
+void ItemUseOutOfBattle_PartyHeal(u8 taskId)
+{
+    HealPlayerParty();
+    PlayFanfare(MUS_HEAL);
+    StringExpandPlaceholders(gStringVar4, sText_PartyHealed);
+
+    if (!gTasks[taskId].tUsingRegisteredKeyItem)
+    {
+        DisplayItemMessage(taskId, FONT_NORMAL, gStringVar4, CloseItemMessage);
+    }
+    else
+    {
+        // Used via the registered-key-item shortcut, so there's no bag screen to
+        // print into - show it as a field message instead.
+        DisplayItemMessageOnField(taskId, gStringVar4, Task_CloseCantUseKeyItemMessage);
+    }
+}
+
 void HandleUseExpiredRepel(struct ScriptContext *ctx)
 {
 #if VAR_LAST_REPEL_LURE_USED != 0

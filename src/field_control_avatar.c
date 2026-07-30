@@ -1,6 +1,7 @@
 #include "global.h"
 #include "battle_setup.h"
 #include "bike.h"
+#include "randomizer.h"
 #include "coord_event_weather.h"
 #include "daycare.h"
 #include "debug.h"
@@ -459,6 +460,12 @@ static const u8 *GetInteractedBackgroundEventScript(struct MapPosition *position
         gSpecialVar_0x8004 = bgEvent->bgUnion.hiddenItem.hiddenItemId + FLAG_HIDDEN_ITEMS_START;
         gSpecialVar_0x8005 = bgEvent->bgUnion.hiddenItem.item;
         gSpecialVar_0x8009 = bgEvent->bgUnion.hiddenItem.quantity;
+#if RANDOMIZER_FIELD_ITEMS_ENABLED
+        // Keyed on the hidden item's own flag, which is unique per hidden item.
+        // These roll freely and may produce a TM - unlike visible balls, they
+        // don't take part in the guaranteed-TM count.
+        gSpecialVar_0x8005 = Randomizer_GetHiddenItem(gSpecialVar_0x8004, gSpecialVar_0x8005);
+#endif
         if (FlagGet(gSpecialVar_0x8004) == TRUE)
             return NULL;
         return EventScript_HiddenItemScript;

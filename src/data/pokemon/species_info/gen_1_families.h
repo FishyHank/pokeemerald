@@ -18206,21 +18206,44 @@ const struct SpeciesInfo gSpeciesInfoGen1[] =
         .eggMoveLearnset = sEeveeEggMoveLearnset,
         .formSpeciesIdTable = sEeveeFormSpeciesIdTable,
         .formChangeTable = sEeveeFormChangeTable,
+        // Eevee never evolves on level-up. Every branch below is either an
+        // EVO_ITEM (using a stone from the bag, unchanged from vanilla) or an
+        // EVO_SCRIPT_TRIGGER fired by the party menu's EVOLVE button - and
+        // EVO_MODE_NORMAL, the level-up path, evaluates neither. That's what
+        // makes the choice permanent-until-the-player-decides instead of being
+        // spent by the next level-up.
+        //
+        // Order matters: GetEvolutionTargetSpecies stops at the first match, so
+        // a held stone beats the location check, which beats a Fairy move,
+        // which beats the time of day.
+        //
+        // The vanilla friendship requirement is gone from Espeon/Umbreon/
+        // Sylveon: with randomized learnsets and Level-to-Cap leveling there is
+        // no reliable way to farm friendship, so it gated these behind busywork
+        // rather than a decision.
         .evolutions = EVOLUTION({EVO_ITEM, ITEM_THUNDER_STONE, SPECIES_JOLTEON},
                                 {EVO_ITEM, ITEM_WATER_STONE, SPECIES_VAPOREON},
-                                {EVO_ITEM, ITEM_FIRE_STONE, SPECIES_FLAREON}
+                                {EVO_ITEM, ITEM_FIRE_STONE, SPECIES_FLAREON},
+                                // Held stone, read by the EVOLVE button. The stone is not
+                                // consumed this way - it's a choice you can change until
+                                // you press the button.
+                                {EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_JOLTEON,  CONDITIONS({IF_HOLD_ITEM, ITEM_THUNDER_STONE})},
+                                {EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_VAPOREON, CONDITIONS({IF_HOLD_ITEM, ITEM_WATER_STONE})},
+                                {EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_FLAREON,  CONDITIONS({IF_HOLD_ITEM, ITEM_FIRE_STONE})}
+                            #if P_GEN_4_CROSS_EVOS
+                                ,{EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_LEAFEON, CONDITIONS({IF_HOLD_ITEM, ITEM_LEAF_STONE})},
+                                {EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_GLACEON, CONDITIONS({IF_HOLD_ITEM, ITEM_ICE_STONE})},
+                                {EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_LEAFEON, CONDITIONS({IF_IN_MAP, MAP_PETALBURG_WOODS})},
+                                {EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_GLACEON, CONDITIONS({IF_IN_MAP, MAP_SHOAL_CAVE_LOW_TIDE_ICE_ROOM})},
+                                {EVO_ITEM, ITEM_LEAF_STONE, SPECIES_LEAFEON},
+                                {EVO_ITEM, ITEM_ICE_STONE, SPECIES_GLACEON}
+                            #endif
                             #if P_GEN_6_CROSS_EVOS
-                                ,{EVO_LEVEL, 0, SPECIES_SYLVEON, CONDITIONS({IF_MIN_FRIENDSHIP, FRIENDSHIP_EVO_THRESHOLD}, {IF_KNOWS_MOVE_TYPE, TYPE_FAIRY})}
+                                ,{EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_SYLVEON, CONDITIONS({IF_KNOWS_MOVE_TYPE, TYPE_FAIRY})}
                             #endif
                             #if P_GEN_2_CROSS_EVOS
-                                ,{EVO_LEVEL, 0, SPECIES_ESPEON, CONDITIONS({IF_MIN_FRIENDSHIP, FRIENDSHIP_EVO_THRESHOLD}, {IF_NOT_TIME, TIME_NIGHT})},
-                                {EVO_LEVEL, 0, SPECIES_UMBREON, CONDITIONS({IF_MIN_FRIENDSHIP, FRIENDSHIP_EVO_THRESHOLD}, {IF_TIME, TIME_NIGHT})}
-                            #endif
-                            #if P_GEN_4_CROSS_EVOS
-                                ,{EVO_LEVEL, 0, SPECIES_LEAFEON, CONDITIONS({IF_IN_MAP, MAP_PETALBURG_WOODS})},
-                                {EVO_ITEM, ITEM_LEAF_STONE, SPECIES_LEAFEON},
-                                {EVO_LEVEL, 0, SPECIES_GLACEON, CONDITIONS({IF_IN_MAP, MAP_SHOAL_CAVE_LOW_TIDE_ICE_ROOM})},
-                                {EVO_ITEM, ITEM_ICE_STONE, SPECIES_GLACEON}
+                                ,{EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_ESPEON, CONDITIONS({IF_NOT_TIME, TIME_NIGHT})},
+                                {EVO_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE, SPECIES_UMBREON, CONDITIONS({IF_TIME, TIME_NIGHT})}
                             #endif
                             ),
     },

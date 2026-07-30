@@ -601,7 +601,8 @@ struct SaveBlock2
              u16 optionsBattleStyle:1; // OPTIONS_BATTLE_STYLE_[SHIFT/SET]
              u16 optionsBattleSceneOff:1; // whether battle animations are disabled
              u16 regionMapZoom:1; // whether the map is zoomed in
-             //u16 padding1:4;
+             u16 quickstartGender:1; // MALE, FEMALE - saved Quickstart profile, set via the Options menu
+             //u16 padding1:3;
              //u16 padding2;
     /*0x18*/ struct Pokedex pokedex;
     /*0x90*/ u32 randomizerSeed;
@@ -623,7 +624,19 @@ struct SaveBlock2
 #endif //FREE_RECORD_MIXING_HALL_RECORDS
     /*0x624*/ u16 contestLinkResults[CONTEST_CATEGORIES_COUNT][CONTESTANT_COUNT];
     /*0x64C*/ struct BattleFrontier frontier;
-}; // sizeof=0xF2C
+              // Saved Quickstart profile name, set via the Options menu ("QUICKSTART" row).
+              // Empty (quickstartName[0] == EOS) until the player configures one, in which
+              // case Quickstart uses this + quickstartGender instead of its default profile.
+              //
+              // Deliberately appended AFTER every vanilla field rather than placed next to
+              // quickstartGender. SaveBlock2 is written to flash as raw bytes, so inserting
+              // mid-struct shifts every later field's offset - which invalidates the /*0xXX*/
+              // comments below the insertion point and, worse, makes an older save load
+              // successfully (its checksum still matches) while reading encryptionKey and
+              // everything past it from the wrong place. Appending shifts nothing. Add any
+              // future save fields here for the same reason.
+              u8 quickstartName[PLAYER_NAME_LENGTH + 1];
+}; // sizeof=0xF2C (plus quickstartName)
 
 extern struct SaveBlock2 *gSaveBlock2Ptr;
 

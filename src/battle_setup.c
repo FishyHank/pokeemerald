@@ -958,6 +958,50 @@ void ChooseStarter(void)
     gMain.savedCallback = CB2_GiveStarter;
 }
 
+#if P_STARTER_PERFECT_IVS > 0
+// Forces P_STARTER_PERFECT_IVS of the starter's six IVs to 31, leaving the rest
+// to roll normally - so it's "at least" that many perfect, since an untouched
+// stat can still roll 31 on its own.
+//
+// Which stats are chosen is shuffled rather than picked-and-retried: rejection
+// sampling would loop, and with 4 of 6 stats wanted the later picks would
+// collide often. A Fisher-Yates over the six stat indices then taking the first
+// N is O(6) with no retry at all.
+static void GiveStarterPerfectIVs(struct Pokemon *mon)
+{
+    static const u8 sIvDataFields[NUM_STATS] =
+    {
+        MON_DATA_HP_IV, MON_DATA_ATK_IV, MON_DATA_DEF_IV,
+        MON_DATA_SPEED_IV, MON_DATA_SPATK_IV, MON_DATA_SPDEF_IV,
+    };
+    u8 order[NUM_STATS];
+    u32 i, perfect = MAX_PER_STAT_IVS;
+
+    if (GetMonData(mon, MON_DATA_SPECIES) == SPECIES_NONE)
+        return;
+
+    for (i = 0; i < NUM_STATS; i++)
+        order[i] = i;
+
+    for (i = 0; i + 1 < NUM_STATS; i++)
+    {
+        u32 j = i + (Random() % (NUM_STATS - i));
+        u8 swap = order[i];
+
+        order[i] = order[j];
+        order[j] = swap;
+    }
+
+    for (i = 0; i < P_STARTER_PERFECT_IVS && i < NUM_STATS; i++)
+        SetMonData(mon, sIvDataFields[order[i]], &perfect);
+
+    // Required: the HP IV feeds max HP, so without this the mon keeps the HP it
+    // was created with and the change wouldn't show until something else
+    // recalculated it.
+    CalculateMonStats(mon);
+}
+#endif
+
 static void CB2_GiveStarter(void)
 {
     u16 starterMon;
@@ -965,6 +1009,11 @@ static void CB2_GiveStarter(void)
     *GetVarPointer(VAR_STARTER_MON) = gSpecialVar_Result;
     starterMon = GetStarterPokemon(gSpecialVar_Result);
     ScriptGiveMon(starterMon, 5, ITEM_NONE);
+#if P_STARTER_PERFECT_IVS > 0
+    // Safe to assume slot 0: this runs during the Birch rescue on a brand new
+    // save, so the starter is the only Pokemon the player has.
+    GiveStarterPerfectIVs(&gParties[B_TRAINER_PLAYER][0]);
+#endif
     ResetTasks();
     PlayBattleBGM();
     SetMainCallback2(CB2_StartFirstBattle);

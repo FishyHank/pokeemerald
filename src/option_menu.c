@@ -1,10 +1,12 @@
 #include "global.h"
 #include "option_menu.h"
 #include "bg.h"
+#include "event_data.h"
 #include "gpu_regs.h"
 #include "international_string_util.h"
 #include "main.h"
 #include "menu.h"
+#include "naming_screen.h"
 #include "palette.h"
 #include "scanline_effect.h"
 #include "sprite.h"
@@ -19,7 +21,11 @@
 #define tMenuSelection data[0]
 #define tTextSpeed data[1]
 #define tBattleSceneOff data[2]
+#if LOCK_BATTLE_STYLE_TO_SET
+#define tQuickstartGender data[3]
+#else
 #define tBattleStyle data[3]
+#endif
 #define tSound data[4]
 #define tButtonMode data[5]
 #define tWindowFrameType data[6]
@@ -28,7 +34,11 @@ enum
 {
     MENUITEM_TEXTSPEED,
     MENUITEM_BATTLESCENE,
+#if LOCK_BATTLE_STYLE_TO_SET
+    MENUITEM_QUICKSTART,
+#else
     MENUITEM_BATTLESTYLE,
+#endif
     MENUITEM_SOUND,
     MENUITEM_BUTTONMODE,
     MENUITEM_FRAMETYPE,
@@ -44,7 +54,11 @@ enum
 
 #define YPOS_TEXTSPEED    (MENUITEM_TEXTSPEED * 16)
 #define YPOS_BATTLESCENE  (MENUITEM_BATTLESCENE * 16)
+#if LOCK_BATTLE_STYLE_TO_SET
+#define YPOS_QUICKSTART   (MENUITEM_QUICKSTART * 16)
+#else
 #define YPOS_BATTLESTYLE  (MENUITEM_BATTLESTYLE * 16)
+#endif
 #define YPOS_SOUND        (MENUITEM_SOUND * 16)
 #define YPOS_BUTTONMODE   (MENUITEM_BUTTONMODE * 16)
 #define YPOS_FRAMETYPE    (MENUITEM_FRAMETYPE * 16)
@@ -58,8 +72,14 @@ static u8 TextSpeed_ProcessInput(u8 selection);
 static void TextSpeed_DrawChoices(u8 selection);
 static u8 BattleScene_ProcessInput(u8 selection);
 static void BattleScene_DrawChoices(u8 selection);
+#if LOCK_BATTLE_STYLE_TO_SET
+static u8 Quickstart_ProcessInput(u8 selection);
+static void Quickstart_DrawChoices(u8 selection);
+static void CB2_ReturnFromQuickstartNaming(void);
+#else
 static u8 BattleStyle_ProcessInput(u8 selection);
 static void BattleStyle_DrawChoices(u8 selection);
+#endif
 static u8 Sound_ProcessInput(u8 selection);
 static void Sound_DrawChoices(u8 selection);
 static u8 FrameType_ProcessInput(u8 selection);
@@ -78,8 +98,13 @@ static const u8 gText_TextSpeedMid[]       = _("{COLOR GREEN}{SHADOW LIGHT_GREEN
 static const u8 gText_TextSpeedFast[]      = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}FAST");
 static const u8 gText_BattleSceneOn[]      = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}ON");
 static const u8 gText_BattleSceneOff[]     = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}OFF");
+#if LOCK_BATTLE_STYLE_TO_SET
+static const u8 gText_QuickstartBoy[]      = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}BOY");
+static const u8 gText_QuickstartGirl[]     = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}GIRL");
+#else
 static const u8 gText_BattleStyleShift[]   = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}SHIFT");
 static const u8 gText_BattleStyleSet[]     = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}SET");
+#endif
 static const u8 gText_SoundMono[]          = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}MONO");
 static const u8 gText_SoundStereo[]        = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}STEREO");
 static const u8 gText_FrameType[]          = _("{COLOR GREEN}{SHADOW LIGHT_GREEN}TYPE");
@@ -96,7 +121,11 @@ static const u8 *const sOptionMenuItemsNames[MENUITEM_COUNT] =
 {
     [MENUITEM_TEXTSPEED]   = COMPOUND_STRING("TEXT SPEED"),
     [MENUITEM_BATTLESCENE] = COMPOUND_STRING("BATTLE SCENE"),
+#if LOCK_BATTLE_STYLE_TO_SET
+    [MENUITEM_QUICKSTART]  = COMPOUND_STRING("QUICKSTART"),
+#else
     [MENUITEM_BATTLESTYLE] = COMPOUND_STRING("BATTLE STYLE"),
+#endif
     [MENUITEM_SOUND]       = COMPOUND_STRING("SOUND"),
     [MENUITEM_BUTTONMODE]  = COMPOUND_STRING("BUTTON MODE"),
     [MENUITEM_FRAMETYPE]   = COMPOUND_STRING("FRAME"),
@@ -246,14 +275,22 @@ void CB2_InitOptionMenu(void)
         gTasks[taskId].tMenuSelection = 0;
         gTasks[taskId].tTextSpeed = gSaveBlock2Ptr->optionsTextSpeed;
         gTasks[taskId].tBattleSceneOff = gSaveBlock2Ptr->optionsBattleSceneOff;
+#if LOCK_BATTLE_STYLE_TO_SET
+        gTasks[taskId].tQuickstartGender = gSaveBlock2Ptr->quickstartGender;
+#else
         gTasks[taskId].tBattleStyle = gSaveBlock2Ptr->optionsBattleStyle;
+#endif
         gTasks[taskId].tSound = gSaveBlock2Ptr->optionsSound;
         gTasks[taskId].tButtonMode = gSaveBlock2Ptr->optionsButtonMode;
         gTasks[taskId].tWindowFrameType = gSaveBlock2Ptr->optionsWindowFrameType;
 
         TextSpeed_DrawChoices(gTasks[taskId].tTextSpeed);
         BattleScene_DrawChoices(gTasks[taskId].tBattleSceneOff);
+#if LOCK_BATTLE_STYLE_TO_SET
+        Quickstart_DrawChoices(gTasks[taskId].tQuickstartGender);
+#else
         BattleStyle_DrawChoices(gTasks[taskId].tBattleStyle);
+#endif
         Sound_DrawChoices(gTasks[taskId].tSound);
         ButtonMode_DrawChoices(gTasks[taskId].tButtonMode);
         FrameType_DrawChoices(gTasks[taskId].tWindowFrameType);
@@ -283,6 +320,18 @@ static void Task_OptionMenuProcessInput(u8 taskId)
     {
         if (gTasks[taskId].tMenuSelection == MENUITEM_CANCEL)
             gTasks[taskId].func = Task_OptionMenuSave;
+#if LOCK_BATTLE_STYLE_TO_SET
+        else if (gTasks[taskId].tMenuSelection == MENUITEM_QUICKSTART)
+        {
+            // Commit the gender toggle before leaving for the naming screen.
+            // CB2_ReturnFromQuickstartNaming rebuilds this menu from the save
+            // block, so an uncommitted change made just before pressing A
+            // would otherwise be silently discarded on the way back.
+            gSaveBlock2Ptr->quickstartGender = gTasks[taskId].tQuickstartGender;
+            DoNamingScreen(NAMING_SCREEN_PLAYER, gSaveBlock2Ptr->quickstartName,
+                           gTasks[taskId].tQuickstartGender ? FEMALE : MALE, 0, 0, CB2_ReturnFromQuickstartNaming);
+        }
+#endif
     }
     else if (JOY_NEW(B_BUTTON))
     {
@@ -324,6 +373,15 @@ static void Task_OptionMenuProcessInput(u8 taskId)
             if (previousOption != gTasks[taskId].tBattleSceneOff)
                 BattleScene_DrawChoices(gTasks[taskId].tBattleSceneOff);
             break;
+#if LOCK_BATTLE_STYLE_TO_SET
+        case MENUITEM_QUICKSTART:
+            previousOption = gTasks[taskId].tQuickstartGender;
+            gTasks[taskId].tQuickstartGender = Quickstart_ProcessInput(gTasks[taskId].tQuickstartGender);
+
+            if (previousOption != gTasks[taskId].tQuickstartGender)
+                Quickstart_DrawChoices(gTasks[taskId].tQuickstartGender);
+            break;
+#else
         case MENUITEM_BATTLESTYLE:
             previousOption = gTasks[taskId].tBattleStyle;
             gTasks[taskId].tBattleStyle = BattleStyle_ProcessInput(gTasks[taskId].tBattleStyle);
@@ -331,6 +389,7 @@ static void Task_OptionMenuProcessInput(u8 taskId)
             if (previousOption != gTasks[taskId].tBattleStyle)
                 BattleStyle_DrawChoices(gTasks[taskId].tBattleStyle);
             break;
+#endif
         case MENUITEM_SOUND:
             previousOption = gTasks[taskId].tSound;
             gTasks[taskId].tSound = Sound_ProcessInput(gTasks[taskId].tSound);
@@ -368,7 +427,11 @@ static void Task_OptionMenuSave(u8 taskId)
 {
     gSaveBlock2Ptr->optionsTextSpeed = gTasks[taskId].tTextSpeed;
     gSaveBlock2Ptr->optionsBattleSceneOff = gTasks[taskId].tBattleSceneOff;
+#if LOCK_BATTLE_STYLE_TO_SET
+    gSaveBlock2Ptr->quickstartGender = gTasks[taskId].tQuickstartGender;
+#else
     gSaveBlock2Ptr->optionsBattleStyle = gTasks[taskId].tBattleStyle;
+#endif
     gSaveBlock2Ptr->optionsSound = gTasks[taskId].tSound;
     gSaveBlock2Ptr->optionsButtonMode = gTasks[taskId].tButtonMode;
     gSaveBlock2Ptr->optionsWindowFrameType = gTasks[taskId].tWindowFrameType;
@@ -480,6 +543,38 @@ static void BattleScene_DrawChoices(u8 selection)
     DrawOptionMenuChoice(gText_BattleSceneOff, GetStringRightAlignXOffset(FONT_NORMAL, gText_BattleSceneOff, 198), YPOS_BATTLESCENE, styles[1]);
 }
 
+#if LOCK_BATTLE_STYLE_TO_SET
+static u8 Quickstart_ProcessInput(u8 selection)
+{
+    if (JOY_NEW(DPAD_LEFT | DPAD_RIGHT))
+    {
+        selection ^= 1;
+        sArrowPressed = TRUE;
+    }
+
+    return selection;
+}
+
+static void Quickstart_DrawChoices(u8 selection)
+{
+    u8 styles[2];
+
+    styles[0] = 0;
+    styles[1] = 0;
+    styles[selection] = 1;
+
+    DrawOptionMenuChoice(gText_QuickstartBoy, 104, YPOS_QUICKSTART, styles[0]);
+    DrawOptionMenuChoice(gText_QuickstartGirl, GetStringRightAlignXOffset(FONT_NORMAL, gText_QuickstartGirl, 198), YPOS_QUICKSTART, styles[1]);
+}
+
+static void CB2_ReturnFromQuickstartNaming(void)
+{
+    // Redraws the Options screen from scratch - CB2_InitOptionMenu's state
+    // machine always rebuilds fully from gMain.state = 0, so nothing needs to
+    // be manually preserved across the naming-screen round trip.
+    SetMainCallback2(CB2_InitOptionMenu);
+}
+#else
 static u8 BattleStyle_ProcessInput(u8 selection)
 {
     if (JOY_NEW(DPAD_LEFT | DPAD_RIGHT))
@@ -502,6 +597,7 @@ static void BattleStyle_DrawChoices(u8 selection)
     DrawOptionMenuChoice(gText_BattleStyleShift, 104, YPOS_BATTLESTYLE, styles[0]);
     DrawOptionMenuChoice(gText_BattleStyleSet, GetStringRightAlignXOffset(FONT_NORMAL, gText_BattleStyleSet, 198), YPOS_BATTLESTYLE, styles[1]);
 }
+#endif
 
 static u8 Sound_ProcessInput(u8 selection)
 {

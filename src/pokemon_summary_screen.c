@@ -4058,14 +4058,12 @@ static void Task_PrintBattleMoves(u8 taskId)
 
 u8 GetCurrentPpToMaxPpState(u8 currentPp, u8 maxPp)
 {
-    if (currentPp == maxPp)
-        return 0;
-    else if (currentPp == 0)
-        return 2;
+    if (currentPp == 0)
+        return 2;   // empty -> red
     else if (currentPp <= maxPp / 2)
-        return 1;
+        return 1;   // at or below half -> orange
     else
-        return 0;
+        return 3;   // above half (including full) -> gray/neutral, matches the "no PP data" dash color
 }
 
 static void PrintMoveNameAndPP(u8 moveIndex)

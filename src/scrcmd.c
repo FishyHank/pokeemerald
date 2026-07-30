@@ -2317,6 +2317,26 @@ bool8 ScrCmd_checkfieldmove(struct ScriptContext *ctx)
         return FALSE;
 
     move = FieldMove_GetMoveId(fieldMove);
+
+    if (OW_HMS_BADGE_ONLY && IsHMFieldMove(fieldMove))
+    {
+        // The badge alone unlocks the move, so no Pokemon needs to know it -
+        // with randomized learnsets an HM move may never be rollable at all,
+        // which would otherwise soft-lock traversal permanently. Callers still
+        // need a party slot for the "<mon> used CUT!" message and the field
+        // effect animation, so report the first usable member. gSpecialVar_Result
+        // keeps the PARTY_SIZE sentinel set above when there isn't one.
+        u32 slot = GetFirstUsablePartyMonSlot();
+
+        if (slot != PARTY_SIZE)
+        {
+            gSpecialVar_Result = slot;
+            gSpecialVar_0x8004 = GetMonData(&gParties[B_TRAINER_PLAYER][slot], MON_DATA_SPECIES);
+        }
+
+        return FALSE;
+    }
+
     for (u32 i = 0; i < PARTY_SIZE; i++)
     {
         enum Species species = GetMonData(&gParties[B_TRAINER_PLAYER][i], MON_DATA_SPECIES);

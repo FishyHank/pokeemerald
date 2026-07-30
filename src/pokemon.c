@@ -42,6 +42,7 @@
 #include "pokemon_storage_system.h"
 #include "pokerus.h"
 #include "random.h"
+#include "randomizer.h"
 #include "recorded_battle.h"
 #include "regions.h"
 #include "rtc.h"
@@ -3124,6 +3125,19 @@ enum Ability GetAbilityBySpecies(enum Species species, u8 abilityNum)
 {
     int i;
 
+#if RANDOMIZER_ABILITIES_ENABLED
+    // Randomized per species + slot. This is the single chokepoint every
+    // ability lookup funnels through (GetMonAbility, battle setup, the summary
+    // screen, CopyMon...), so hooking here covers all of them at once.
+    //
+    // gLastUsedAbility must still be written: callers read it as an implicit
+    // out-param rather than always using the return value.
+    if (abilityNum >= NUM_ABILITY_SLOTS)
+        abilityNum = 0; // vanilla treats an out-of-range slot as "find any"
+    gLastUsedAbility = Randomizer_GetAbilityForSpecies(species, abilityNum);
+    return gLastUsedAbility;
+#endif
+
     if (abilityNum < NUM_ABILITY_SLOTS)
         gLastUsedAbility = GetSpeciesAbility(species, abilityNum);
     else
@@ -3325,10 +3339,14 @@ u32 GetSpeciesBaseStatTotal(enum Species species)
 
 const struct LevelUpMove *GetSpeciesLevelUpLearnset(enum Species species)
 {
+#if RANDOMIZER_LEARNSETS_ENABLED
+    return Randomizer_GetLevelUpLearnset(species);
+#else
     const struct LevelUpMove *learnset = gSpeciesInfo[SanitizeSpeciesId(species)].levelUpLearnset;
     if (learnset == NULL)
         return gSpeciesInfo[SPECIES_NONE].levelUpLearnset;
     return learnset;
+#endif
 }
 
 const u16 *GetSpeciesTeachableLearnset(enum Species species)
@@ -4362,11 +4380,31 @@ bool32 DoesMonMeetAdditionalConditions(struct Pokemon *mon, const struct Evoluti
         case IF_KNOWS_MOVE:
             if (MonKnowsMove(mon, params[i].arg1))
                 currentCondition = TRUE;
+#if P_EVO_WAIVE_MOVE_CONDITIONS
+            // Randomized learnsets mean the required move is essentially never
+            // learned naturally, which would strand 16 evolutions (Tangrowth,
+            // Mamoswine, Ambipom, Yanmega, Lickilicky, Tsareena, Grapploct,
+            // Farigiraf, Dudunsparce, Overqwil, Naganadel, Hydrapple, Sudowoodo,
+            // Mr. Mime...). A level floor stands in for the move requirement,
+            // because most of these entries are written as "any level once the
+            // move is known" and would otherwise fire on the next level-up.
+            else if (GetMonData(mon, MON_DATA_LEVEL, NULL) >= P_EVO_WAIVED_MOVE_MIN_LEVEL)
+                currentCondition = TRUE;
+#endif
             break;
         // Gen 5
         case IF_TRADE_PARTNER_SPECIES:
             if (params[i].arg1 == partnerSpecies && partnerHoldEffect != HOLD_EFFECT_PREVENT_EVOLVE)
                 currentCondition = TRUE;
+#if P_TRADE_EVOS_VIA_LINKING_CORD
+            // No trade partner means this isn't a trade at all - the Linking
+            // Cord path passes NULL. Karrablast and Shelmet are the only two
+            // species gated this way (they must be traded FOR each other), and
+            // that is flatly unmeetable solo, so waive it rather than leaving
+            // them as the two Pokemon in the game that can never evolve.
+            else if (tradePartner == NULL)
+                currentCondition = TRUE;
+#endif
             break;
         // Gen 6
         case IF_TYPE_IN_PARTY:
@@ -4632,6 +4670,17 @@ enum Species GetEvolutionTargetSpecies(struct Pokemon *mon, enum EvolutionMode m
                 if (evolutions[i].param == evolutionItem)
                     conditionsMet = TRUE;
                 break;
+#if P_TRADE_EVOS_VIA_LINKING_CORD
+            // A Linking Cord stands in for the trade itself, the way it does
+            // from Gen 8 onward. Any held-item condition attached to the
+            // evolution is still enforced below, so e.g. Poliwhirl still needs
+            // to be holding a King's Rock to become Politoed rather than
+            // Poliwrath - the Cord only replaces the trade, not the recipe.
+            case EVO_TRADE:
+                if (evolutionItem == ITEM_LINKING_CORD)
+                    conditionsMet = TRUE;
+                break;
+#endif
             }
 
             if (conditionsMet && DoesMonMeetAdditionalConditions(mon, evolutions[i].params, NULL, PARTY_SIZE, canStopEvo, evoState))
@@ -5193,6 +5242,32 @@ u8 CanLearnTeachableMove(enum Species species, enum Move move)
     const u16 *teachableLearnset = GetSpeciesTeachableLearnset(species);
     if (species == SPECIES_EGG)
         return FALSE;
+
+#if P_ALL_MONS_LEARN_ALL_TMS
+    // Anything a TM or HM currently teaches is learnable by every species,
+    // regardless of its teachable learnset.
+    //
+    // The test is "is some machine currently teaching this move", not a fixed
+    // list of moves, so it tracks RANDOMIZER_TM_MOVES_ENABLED for free: if this
+    // seed's TM07 rolled Earthquake, Earthquake becomes universally learnable
+    // and stops being so in a seed where no TM teaches it.
+    //
+    // Deliberately scoped to machine moves rather than returning TRUE outright.
+    // This function also answers "can this egg inherit its father's move" and
+    // "could an Illusion plausibly know this", and blanket-TRUE would quietly
+    // change breeding and AI behaviour along with TM teaching.
+    if (GetTMHMItemIdFromMoveId(move) != ITEM_NONE)
+        return TRUE;
+#endif
+
+#if P_ALL_MONS_LEARN_ALL_TUTOR_MOVES
+    // Same treatment for tutor moves, and same reasoning: asks whether a tutor
+    // is currently offering the move, so it tracks randomized tutors rather
+    // than needing a second list kept in sync.
+    if (IsTutorMove(move))
+        return TRUE;
+#endif
+
     for (u32 i = 0; teachableLearnset[i] != MOVE_UNAVAILABLE; i++)
     {
         if (teachableLearnset[i] == move)

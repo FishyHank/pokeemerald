@@ -1942,6 +1942,17 @@ bool32 IsEventIslandMapSecId(mapsec_u8_t mapSecId)
     return FALSE;
 }
 
+// The fly map's cancel path normally returns to the party menu, because that's
+// where Fly is selected from in vanilla. When it's opened straight from the
+// pause menu there's no party menu to go back to, so cancelling has to return
+// to the overworld instead.
+static bool8 sFlyMapReturnToOverworldOnCancel = FALSE;
+
+void FlyMap_SetReturnToOverworldOnCancel(bool8 enable)
+{
+    sFlyMapReturnToOverworldOnCancel = enable;
+}
+
 void CB2_OpenFlyMap(void)
 {
     switch (gMain.state)
@@ -2487,6 +2498,11 @@ static void CB_ExitFlyMap(void)
 
                 SetFlyDestination(tempRegionMap);
                 ReturnToFieldFromFlyMapSelect();
+            }
+            else if (sFlyMapReturnToOverworldOnCancel)
+            {
+                sFlyMapReturnToOverworldOnCancel = FALSE;
+                SetMainCallback2(CB2_ReturnToFieldWithOpenMenu);
             }
             else
             {

@@ -12,6 +12,10 @@
 #define OW_WHITEOUT_CUTSCENE            GEN_LATEST // In Gen4+, whiting out shows an additional message and post whiteout event script cutscene with a healing NPC. (While this change was also in FRLG, for the sake of simplicity, setting this to GEN_3 will result in RSE behavior.)
 #define OW_DEFOG_FIELD_MOVE             FALSE      // If enabled, Defog can be used as a Field Move as seen in DPPt.
 #define OW_ROCK_CLIMB_FIELD_MOVE        FALSE      // If enabled, Rock Climb can be used as a Field Move as seen in DPPt.
+#define OW_DIG_FROM_START_MENU          TRUE       // If enabled, the pause menu's FLY row becomes DIG when you're somewhere Dig/Escape Rope works (caves, dungeons) instead of disappearing.
+#define OW_FLY_FROM_START_MENU          TRUE     // If enabled, a FLY option appears in the pause menu once the Fly badge is earned (and the current map allows flying), so you don't have to go through the party menu.
+#define OW_SURF_PROMPT_ON_BUMP          TRUE     // If enabled, simply walking into surfable water offers to Surf, instead of only offering it when you press A while facing the water.
+#define OW_HMS_BADGE_ONLY               TRUE     // If enabled, HM traversal moves (Cut/Surf/Strength/Fly/etc.) need ONLY the matching gym badge - no party Pokémon has to know the move. Essential with randomized learnsets, where an HM move may never be rollable. Non-HM field moves (Softboiled, Sweet Scent, Dig...) are unaffected and still require knowing the move.
 #define OW_CHOOSE_FROM_PC_AND_PARTY     TRUE       // If enabled, NPCs like move tutors or trainers asking for trade will let you pick a Pokémon from your PC or party instead of just your party
 
 // Item Obtain Description Box

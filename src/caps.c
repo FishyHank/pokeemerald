@@ -4,6 +4,19 @@
 #include "caps.h"
 #include "pokemon.h"
 
+// Standard Badge Caps (15 through 58):
+static const u32 sLevelCapFlagMap[][2] =
+{
+    {FLAG_BADGE01_GET, 15},
+    {FLAG_BADGE02_GET, 19},
+    {FLAG_BADGE03_GET, 24},
+    {FLAG_BADGE04_GET, 29},
+    {FLAG_BADGE05_GET, 31},
+    {FLAG_BADGE06_GET, 33},
+    {FLAG_BADGE07_GET, 42},
+    {FLAG_BADGE08_GET, 46},
+    {FLAG_IS_CHAMPION, 58},
+};
 
 u32 GetCurrentLevelCap(void)
 {
@@ -13,20 +26,6 @@ u32 GetCurrentLevelCap(void)
 
     if (FlagGet(FLAG_SYS_GAME_CLEAR))
         return 78;
-
-    // Standard Badge Caps (15 through 58):
-    static const u32 sLevelCapFlagMap[][2] =
-    {
-        {FLAG_BADGE01_GET, 15},
-        {FLAG_BADGE02_GET, 19},
-        {FLAG_BADGE03_GET, 24},
-        {FLAG_BADGE04_GET, 29},
-        {FLAG_BADGE05_GET, 31},
-        {FLAG_BADGE06_GET, 33},
-        {FLAG_BADGE07_GET, 42},
-        {FLAG_BADGE08_GET, 46},
-        {FLAG_IS_CHAMPION, 58},
-    };
 
     u32 i;
 
@@ -44,6 +43,24 @@ u32 GetCurrentLevelCap(void)
     }
 
     return MAX_LEVEL;
+}
+
+u32 GetLevelCapThresholdCount(void)
+{
+    if (B_LEVEL_CAP_TYPE != LEVEL_CAP_FLAG_LIST)
+        return 0;
+    return ARRAY_COUNT(sLevelCapFlagMap);
+}
+
+u32 GetLevelCapThresholdLevel(u32 index)
+{
+    // Mirrors GetLevelCapThresholdCount, which reports 0 thresholds for any
+    // non-flag-list cap type. Without this, a config change to B_LEVEL_CAP_TYPE
+    // would turn every caller into a silent out-of-bounds read.
+    if (B_LEVEL_CAP_TYPE != LEVEL_CAP_FLAG_LIST || index >= ARRAY_COUNT(sLevelCapFlagMap))
+        return MAX_LEVEL;
+
+    return sLevelCapFlagMap[index][1];
 }
 
 u32 GetSoftLevelCapExpValue(u32 level, u32 expValue)

@@ -16,6 +16,7 @@
 #include "util.h"
 #include "pokemon.h"
 #include "random.h"
+#include "randomizer.h"
 #include "battle_controllers.h"
 #include "battle_interface.h"
 #include "text.h"
@@ -9895,7 +9896,23 @@ static u32 GetBattleMonCatchRate(struct BattlePokemon *battleMon)
         species = battleMon->species;
     else
         species = battleMon->volatiles.transformedMonSpecies;
-    return gSpeciesInfo[species].catchRate;
+    u32 catchRate = gSpeciesInfo[species].catchRate;
+
+#if B_LEGENDARY_MIN_CATCH_RATE > 0
+    // Raise the floor for legendary-class species only. Applied here rather
+    // than by editing 123 species entries, so it stays one number to tune and
+    // can't drift out of sync with the species data.
+    //
+    // Randomizer_IsLegendaryClass is reused deliberately: it already defines
+    // "legendary class" as restricted-legendary OR sub-legendary OR mythical OR
+    // Ultra Beast, and duplicating that here would mean two definitions to keep
+    // in step. It's a plain species-flag query with no randomizer state behind
+    // it, so this still works with the randomizer switched off.
+    if (Randomizer_IsLegendaryClass(species) && catchRate < B_LEGENDARY_MIN_CATCH_RATE)
+        catchRate = B_LEGENDARY_MIN_CATCH_RATE;
+#endif
+
+    return catchRate;
 }
 
 static u32 ComputeCaptureOdds(u32 wildMonBattler, u32 playerBattler)

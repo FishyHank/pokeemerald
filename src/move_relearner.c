@@ -31,6 +31,7 @@
 #include "constants/party_menu.h"
 #include "constants/rgb.h"
 #include "constants/songs.h"
+#include "randomizer.h"
 #include "data/tutor_moves.h"
 
 // The different versions of hearts are selected using animation
@@ -946,6 +947,37 @@ static u32 GetRelearnerTMMoves(struct BoxPokemon *mon, u16 *moves)
     return numMoves;
 }
 
+// Each tutor slot is rerolled independently, so every tutor NPC offers its own
+// random move. Keyed on the slot index rather than the vanilla move, so two
+// tutors that happen to teach the same move in vanilla still diverge.
+static enum Move RandomizedTutorMove(u32 tutorIndex)
+{
+#if RANDOMIZER_TUTORS_ENABLED
+    return Randomizer_GetTutorMove(tutorIndex);
+#else
+    return gTutorMoves[tutorIndex];
+#endif
+}
+
+// TRUE if any tutor currently offers this move. Built on RandomizedTutorMove
+// rather than reading gTutorMoves directly, so it follows
+// RANDOMIZER_TUTORS_ENABLED for free - the same way the TM side of
+// CanLearnTeachableMove is keyed on the live TM->move mapping instead of a
+// fixed list.
+bool32 IsTutorMove(enum Move move)
+{
+    if (move == MOVE_NONE)
+        return FALSE;
+
+    for (u32 i = 0; gTutorMoves[i] != MOVE_UNAVAILABLE; i++)
+    {
+        if (RandomizedTutorMove(i) == move)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
 static u32 GetRelearnerTutorMoves(struct BoxPokemon *mon, u16 *moves)
 {
     enum Species species = GetBoxMonData(mon, MON_DATA_SPECIES);
@@ -953,7 +985,7 @@ static u32 GetRelearnerTutorMoves(struct BoxPokemon *mon, u16 *moves)
 
     for (u32 i = 0; gTutorMoves[i] != MOVE_UNAVAILABLE; i++)
     {
-        enum Move move = gTutorMoves[i];
+        enum Move move = RandomizedTutorMove(i);
 
         if (!CanLearnTeachableMove(species, move))
             continue;
@@ -1077,7 +1109,7 @@ static bool32 HasRelearnerTutorMoves(struct BoxPokemon *boxMon)
     enum Species species = GetBoxMonData(boxMon, MON_DATA_SPECIES);
     for (u32 i = 0; gTutorMoves[i] != MOVE_UNAVAILABLE; i++)
     {
-        enum Move move = gTutorMoves[i];
+        enum Move move = RandomizedTutorMove(i);
 
         if (!CanLearnTeachableMove(species, move))
             continue;

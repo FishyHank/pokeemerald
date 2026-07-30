@@ -179,7 +179,7 @@ enum OtIdMethod
 #define LEVEL_UP_MOVE_LV   0xFE00
 #define LEVEL_UP_MOVE_END  0xFFFF
 
-#define MAX_LEVEL_UP_MOVES       20
+#define MAX_LEVEL_UP_MOVES       25
 
 #define MON_MALE       0x00
 #define MON_FEMALE     0xFE
@@ -343,6 +343,7 @@ enum EvolutionMode {
 };
 
 enum EvoTriggerVersion {
+    EVO_TRIGGER_EEVEE_CHOICE, // party menu EVOLVE button on Eevee
     EVO_TRIGGER_TABLET_CURSE,
     EVO_TRIGGER_DARK_SCROLL,
     EVO_TRIGGER_WATER_SCROLL,

@@ -10,6 +10,8 @@ void CB2_InitLearnMove(void);
 bool32 CanBoxMonRelearnAnyMove(struct BoxPokemon *boxMon);
 bool32 CanBoxMonRelearnMoves(struct BoxPokemon *boxMon, enum MoveRelearnerStates state);
 bool32 HasMoveToRelearn(struct BoxPokemon *boxMon, enum MoveRelearnerStates state);
+// TRUE if any move tutor currently offers this move. Follows randomized tutors.
+bool32 IsTutorMove(enum Move move);
 
 extern enum MoveRelearnerStates gMoveRelearnerState;
 extern enum RelearnMode gRelearnMode;

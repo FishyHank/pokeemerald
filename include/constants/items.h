@@ -1052,6 +1052,15 @@ enum __attribute__((packed)) Item
     ITEM_TATSUGIRINITE = 872,
     ITEM_GLIMMORANITE = 873,
 
+    // Custom key item: a reusable Repel that toggles on/off and never runs out.
+    // Appended at the end so no existing item id shifts (item ids are stored in
+    // save data - bag contents, PC items, held items).
+    ITEM_INFINITE_REPEL = 874,
+
+    // Custom key item: fully heals the party on demand, like a portable Poke
+    // Center. Appended for the same save-data reason as the item above.
+    ITEM_PARTY_HEAL = 875,
+
     ITEMS_COUNT,
     ITEM_FIELD_ARROW = ITEMS_COUNT,
 };

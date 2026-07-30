@@ -53,6 +53,11 @@
 // Compatibility definition for other projects to detect pokeemerald-expansion
 #define RHH_EXPANSION
 
+// If TRUE, Battle Style is permanently SET (no switch-in prompt after KOing
+// an opponent's mon) and its row is removed from the in-game Options menu
+// entirely - there's nothing to toggle, so nothing to show.
+#define LOCK_BATTLE_STYLE_TO_SET TRUE
+
 // Legacy branch-based defines included for backwards compatibility
 #define BATTLE_ENGINE
 #define POKEMON_EXPANSION

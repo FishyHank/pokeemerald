@@ -50,6 +50,7 @@
 #include "oras_dowse.h"
 #include "palette.h"
 #include "play_time.h"
+#include "quickstart.h"
 #include "random.h"
 #include "roamer.h"
 #include "rotating_gate.h"
@@ -1930,10 +1931,22 @@ void CB2_NewGame(void)
     StopMapMusic();
     ResetSafariZoneFlag_();
     NewGameInitData();
+#if QUICKSTART_SKIP_TO_ROUTE101
+    if (gQuickstartSkipIntroActive)
+        Quickstart_SkipIntroToRoute101();
+#endif
     ResetInitialPlayerAvatarState();
     PlayTimeCounter_Start();
     ScriptContext_Init();
     UnlockPlayerFieldControls();
+#if QUICKSTART_SKIP_TO_ROUTE101
+    if (gQuickstartSkipIntroActive)
+    {
+        gFieldCallback = FieldCB_WarpExitFadeFromBlack;
+        gQuickstartSkipIntroActive = FALSE;
+    }
+    else
+#endif
     if (IS_FRLG)
         gFieldCallback = FieldCB_WarpExitFadeFromBlack;
     else

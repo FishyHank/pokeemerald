@@ -1,5 +1,7 @@
 #include "global.h"
 #include "item.h"
+#include "move.h"
+#include "randomizer.h"
 #include "berry.h"
 #include "pokeball.h"
 #include "string_util.h"
@@ -44,6 +46,51 @@ EWRAM_DATA struct BagPocket gBagPockets[POCKETS_COUNT] = {0};
 
 #define UNPACK_TM_ITEM_ID(_tm) [CAT(ENUM_TM_HM_, _tm) + 1] = { CAT(ITEM_TM_, _tm), CAT(MOVE_, _tm) },
 #define UNPACK_HM_ITEM_ID(_hm) [CAT(ENUM_TM_HM_, _hm) + 1] = { CAT(ITEM_HM_, _hm), CAT(MOVE_, _hm) },
+
+// ---------------------------------------------------------------------------
+// TM/HM move lookups
+//
+// All three funnel through GetTMHMMoveId so they can never disagree about what
+// a given TM teaches.
+// ---------------------------------------------------------------------------
+
+enum Move GetTMHMMoveId(enum TMHMIndex index)
+{
+#if RANDOMIZER_TM_MOVES_ENABLED
+    // Indices 1..NUM_TECHNICAL_MACHINES are the TMs; NUM_TECHNICAL_MACHINES+1
+    // .. NUM_ALL_MACHINES are the HMs, which are deliberately left vanilla. The
+    // field move plumbing (IsHMFieldMove, the per-badge gates, the Surf/Dig
+    // start menu paths) is all written against the real HM moves, and a
+    // randomized "HM03 - Splash" would break traversal rather than spice it up.
+    if (index >= 1 && index <= NUM_TECHNICAL_MACHINES)
+        return Randomizer_GetTMMove(index);
+#endif
+
+    return gTMHMItemMoveIds[index].moveId;
+}
+
+enum Move GetItemTMHMMoveId(enum Item item)
+{
+    return GetTMHMMoveId(GetItemTMHMIndex(item));
+}
+
+enum Item GetTMHMItemIdFromMoveId(enum Move move)
+{
+    u32 i;
+
+    // Without this, MOVE_NONE would match the [0] failsafe row and report that
+    // some TM teaches "nothing".
+    if (move == MOVE_NONE)
+        return ITEM_NONE;
+
+    for (i = 1; i <= NUM_ALL_MACHINES; i++)
+    {
+        if (GetTMHMMoveId(i) == move)
+            return GetTMHMItemId(i);
+    }
+
+    return ITEM_NONE;
+}
 
 const struct TmHmIndexKey gTMHMItemMoveIds[NUM_ALL_MACHINES + 1] =
 {
@@ -810,9 +857,53 @@ static u16 SanitizeBagItemId(enum Item itemId)
     return itemId;
 }
 
+#if I_TM_NAMES_SHOW_MOVE
+static const u8 sText_TMNamePrefix[] = _("TM");
+static const u8 sText_TMNameSeparator[] = _(" - ");
+
+// Two buffers used round-robin rather than one: callers overwhelmingly StringCopy
+// the result immediately (see CopyItemName), but anything that fetches two item
+// names before consuming either - a comparison or a two-column list - would
+// otherwise see the second call clobber the first.
+// "TM" + 2 digits + " - " = 7, plus the move name. Sized off MOVE_NAME_LENGTH
+// rather than ITEM_NAME_LENGTH so it physically cannot overflow if a longer
+// move is ever added to FOREACH_TM - the display would clip, but memory stays
+// intact. Today's longest TM move is "Secret Power" (12), giving 19 chars,
+// which still fits ITEM_NAME_LENGTH (20) with nothing truncated.
+static EWRAM_DATA u8 sTMNameBuffers[2][8 + MOVE_NAME_LENGTH + 1] = {0};
+static EWRAM_DATA u8 sTMNameBufferIndex = 0;
+#endif
+
 const u8 *GetItemName(enum Item itemId)
 {
-    const u8 *name = gItemsInfo[SanitizeItemId(itemId)].name;
+    itemId = SanitizeItemId(itemId);
+
+#if I_TM_NAMES_SHOW_MOVE
+    {
+        enum TMHMIndex tmIndex = GetItemTMHMIndex(itemId);
+
+        // TMs only. HMs keep their plain names - there are few enough of them
+        // that the number isn't the identification problem it is for 58 TMs.
+        if (tmIndex != 0 && tmIndex <= NUM_TECHNICAL_MACHINES)
+        {
+            u8 *buffer = sTMNameBuffers[sTMNameBufferIndex];
+            u8 *end;
+
+            sTMNameBufferIndex ^= 1;
+            // "TM01 - Dragon Claw". The number is kept (zero-padded, matching
+            // the vanilla "TM01" names) so the TM list still reads as an
+            // ordered set - you can see at a glance which numbers you're
+            // still missing in a seed - while the move name says what it does.
+            end = StringCopy(buffer, sText_TMNamePrefix);
+            end = ConvertIntToDecimalStringN(end, tmIndex, STR_CONV_MODE_LEADING_ZEROS, 2);
+            end = StringCopy(end, sText_TMNameSeparator);
+            StringCopy(end, GetMoveName(GetTMHMMoveId(tmIndex)));
+            return buffer;
+        }
+    }
+#endif
+
+    const u8 *name = gItemsInfo[itemId].name;
 
     return name == NULL ? gQuestionMarksItemName : name;
 }

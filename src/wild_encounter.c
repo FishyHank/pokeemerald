@@ -30,6 +30,7 @@
 #include "constants/items.h"
 #include "constants/layouts.h"
 #include "constants/weather.h"
+#include "randomizer.h"
 
 extern const u8 EventScript_SprayWoreOff[];
 
@@ -531,15 +532,28 @@ bool8 TryGenerateWildMon(const struct WildPokemonInfo *wildMonInfo, enum WildPok
     if (gMapHeader.mapLayoutId != LAYOUT_BATTLE_FRONTIER_BATTLE_PIKE_ROOM_WILD_MONS && flags & WILD_CHECK_KEEN_EYE && !IsAbilityAllowingEncounter(level))
         return FALSE;
 
-    CreateWildMon(wildMonInfo->wildPokemon[wildMonIndex].species, level);
+    {
+#if RANDOMIZER_WILD_ENCOUNTERS_ENABLED
+        u32 slotId = RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_WILD, (u32)&wildMonInfo->wildPokemon[wildMonIndex]);
+        u16 species = Randomizer_GetWildSpeciesForLevel(slotId, level);
+#else
+        u16 species = wildMonInfo->wildPokemon[wildMonIndex].species;
+#endif
+        CreateWildMon(species, level);
+    }
     return TRUE;
 }
 
 static u16 GenerateFishingWildMon(const struct WildPokemonInfo *wildMonInfo, u8 rod)
 {
     u8 wildMonIndex = ChooseWildMonIndex_Fishing(rod);
-    enum Species wildMonSpecies = wildMonInfo->wildPokemon[wildMonIndex].species;
     u8 level = ChooseWildMonLevel(wildMonInfo->wildPokemon, wildMonIndex, WILD_AREA_FISHING);
+#if RANDOMIZER_WILD_ENCOUNTERS_ENABLED
+    u32 slotId = RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_WILD, (u32)&wildMonInfo->wildPokemon[wildMonIndex]);
+    enum Species wildMonSpecies = Randomizer_GetWildSpeciesForLevel(slotId, level);
+#else
+    enum Species wildMonSpecies = wildMonInfo->wildPokemon[wildMonIndex].species;
+#endif
 
     UpdateChainFishingStreak();
     CreateWildMon(wildMonSpecies, level);
@@ -1049,6 +1063,13 @@ bool8 UpdateRepelCounter(void)
 bool8 IsWildLevelAllowedByRepel(u8 wildLevel)
 {
     u8 i;
+
+    // The Repel Toggle key item blocks wild encounters outright at ANY level,
+    // rather than vanilla Repel's "only weaker than your lead" rule, so it
+    // short-circuits before the party-level comparison below. Being a
+    // persistent flag instead of a step count, it also never expires.
+    if (FlagGet(FLAG_INFINITE_REPEL_ACTIVE))
+        return FALSE;
 
     if (!REPEL_STEP_COUNT)
         return TRUE;

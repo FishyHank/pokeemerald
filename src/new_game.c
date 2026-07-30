@@ -103,7 +103,11 @@ static void SetDefaultOptions(void)
     gSaveBlock2Ptr->optionsTextSpeed = OPTIONS_TEXT_SPEED_MID;
     gSaveBlock2Ptr->optionsWindowFrameType = 0;
     gSaveBlock2Ptr->optionsSound = OPTIONS_SOUND_MONO;
+#if LOCK_BATTLE_STYLE_TO_SET
+    gSaveBlock2Ptr->optionsBattleStyle = OPTIONS_BATTLE_STYLE_SET;
+#else
     gSaveBlock2Ptr->optionsBattleStyle = OPTIONS_BATTLE_STYLE_SHIFT;
+#endif
     gSaveBlock2Ptr->optionsBattleSceneOff = FALSE;
     gSaveBlock2Ptr->regionMapZoom = FALSE;
 }
@@ -204,6 +208,20 @@ void NewGameInitData(void)
     DeactivateAllRoamers();
     gSaveBlock1Ptr->registeredItem = ITEM_NONE;
     ClearBag();
+    // Custom reusable Repel toggle - granted from the start of every run (no
+    // shop or NPC hands it out). Must come after ClearBag() or it'd be wiped.
+    // Starts OFF; used from the Key Items pocket, it suppresses all wild
+    // encounters until toggled back off.
+    AddBagItem(ITEM_INFINITE_REPEL, 1);
+    FlagClear(FLAG_INFINITE_REPEL_ACTIVE);
+    // Linking Cord, likewise granted rather than sold. It's a reusable key item
+    // (see src/data/items.h) that stands in for trading, so one copy for the
+    // whole run is all a player can ever need - and handing it over up front
+    // means no trade evolution is ever gated behind reaching a particular shop.
+    AddBagItem(ITEM_LINKING_CORD, 1);
+    // Portable Poke Center. Granted rather than sold for the same reason as the
+    // two above: it's a quality-of-life fixture of this hack, not a reward.
+    AddBagItem(ITEM_PARTY_HEAL, 1);
     NewGameInitPCItems();
     ClearPokeblocks();
     ClearDecorationInventories();

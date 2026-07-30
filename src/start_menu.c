@@ -11,6 +11,9 @@
 #include "event_scripts.h"
 #include "fieldmap.h"
 #include "field_effect.h"
+#include "field_move.h"
+#include "item_use.h"
+#include "region_map.h"
 #include "field_player_avatar.h"
 #include "field_specials.h"
 #include "field_weather.h"
@@ -69,6 +72,8 @@ enum
     MENU_ACTION_PYRAMID_BAG,
     MENU_ACTION_DEBUG,
     MENU_ACTION_DEXNAV,
+    MENU_ACTION_FLY,
+    MENU_ACTION_DIG,
 };
 
 // Save status
@@ -88,7 +93,11 @@ EWRAM_DATA static u8 sSafariBallsWindowId = 0;
 EWRAM_DATA static u8 sBattlePyramidFloorWindowId = 0;
 EWRAM_DATA static u8 sStartMenuCursorPos = 0;
 EWRAM_DATA static u8 sNumStartMenuActions = 0;
-EWRAM_DATA static u8 sCurrentStartMenuActions[9] = {0};
+// Sized for the largest menu that can be built. A full normal menu is already
+// 9 entries (Pokedex, DexNav, Pokemon, Bag, PokeNav, Player, Save, Option,
+// Exit), so the optional FLY row needs a 10th slot - without this, adding it
+// would overflow this array.
+EWRAM_DATA static u8 sCurrentStartMenuActions[10] = {0};
 EWRAM_DATA static s8 sInitStartMenuData[2] = {0};
 
 EWRAM_DATA static u8 (*sSaveDialogCallback)(void) = NULL;
@@ -110,6 +119,14 @@ static bool8 StartMenuLinkModePlayerNameCallback(void);
 static bool8 StartMenuBattlePyramidRetireCallback(void);
 static bool8 StartMenuBattlePyramidBagCallback(void);
 static bool8 StartMenuDebugCallback(void);
+static bool8 StartMenuFlyCallback(void);
+static bool8 StartMenuDigCallback(void);
+// gFieldEffectArguments[0] wants a real party index for the animation, so the
+// "nothing usable" answer (PARTY_SIZE) is clamped to slot 0 here. Reaching that
+// would mean the whole party is fainted or eggs, which the menu rows can't be
+// opened from anyway - this just keeps the index in range rather than trusting
+// that.
+static u32 GetFieldMoveUserSlot(void);
 static bool8 StartMenuDexNavCallback(void);
 
 // Menu callbacks
@@ -188,6 +205,8 @@ static const struct WindowTemplate sWindowTemplate_PyramidPeak = {
 };
 
 static const u8 sText_MenuDebug[] = _("DEBUG");
+static const u8 sText_MenuFly[] = _("FLY");
+static const u8 sText_MenuDig[] = _("DIG");
 
 static const struct MenuAction sStartMenuItems[] =
 {
@@ -205,6 +224,8 @@ static const struct MenuAction sStartMenuItems[] =
     [MENU_ACTION_RETIRE_FRONTIER] = {gText_MenuRetire,  {.u8_void = StartMenuBattlePyramidRetireCallback}},
     [MENU_ACTION_PYRAMID_BAG]     = {gText_MenuBag,     {.u8_void = StartMenuBattlePyramidBagCallback}},
     [MENU_ACTION_DEBUG]           = {sText_MenuDebug,   {.u8_void = StartMenuDebugCallback}},
+    [MENU_ACTION_FLY]             = {sText_MenuFly,     {.u8_void = StartMenuFlyCallback}},
+    [MENU_ACTION_DIG]             = {sText_MenuDig,     {.u8_void = StartMenuDigCallback}},
     [MENU_ACTION_DEXNAV]          = {gText_MenuDexNav,  {.u8_void = StartMenuDexNavCallback}},
 };
 
@@ -326,6 +347,14 @@ static void BuildStartMenuActions(void)
 
 static void AddStartMenuAction(u8 action)
 {
+    // AppendToList does no bounds checking, and sCurrentStartMenuActions is
+    // exactly full at its current size - a normal menu with the travel row is
+    // 10 of 10. Dropping an extra row is survivable; scribbling past the array
+    // into neighbouring EWRAM would not be, and would be near-impossible to
+    // trace back here.
+    if (sNumStartMenuActions >= ARRAY_COUNT(sCurrentStartMenuActions))
+        return;
+
     AppendToList(sCurrentStartMenuActions, &sNumStartMenuActions, action);
 }
 
@@ -346,6 +375,21 @@ static void BuildNormalStartMenu(void)
         AddStartMenuAction(MENU_ACTION_POKENAV);
 
     AddStartMenuAction(MENU_ACTION_PLAYER);
+
+    // One contextual travel row, so the menu length never changes: outdoors it
+    // offers FLY, and in a cave/dungeon (where flying is illegal but escaping
+    // isn't) that same slot becomes DIG. Both are omitted where neither
+    // applies, so the row is never a dead option. FLY is checked first because
+    // the two conditions are mutually exclusive in practice - flyable maps
+    // aren't escapable and vice versa - but this makes the precedence explicit
+    // rather than relying on that.
+    if (OW_FLY_FROM_START_MENU
+     && IsFieldMoveUnlocked(FIELD_MOVE_FLY)
+     && Overworld_MapTypeAllowsTeleportAndFly(gMapHeader.mapType) == TRUE)
+        AddStartMenuAction(MENU_ACTION_FLY);
+    else if (OW_DIG_FROM_START_MENU && CanUseDigOrEscapeRopeOnCurMap() == TRUE)
+        AddStartMenuAction(MENU_ACTION_DIG);
+
     AddStartMenuAction(MENU_ACTION_SAVE);
     AddStartMenuAction(MENU_ACTION_OPTION);
     AddStartMenuAction(MENU_ACTION_EXIT);
@@ -794,6 +838,42 @@ static bool8 StartMenuExitCallback(void)
     RemoveExtraStartMenuWindows();
     HideStartMenu(); // Hide start menu
 
+    return TRUE;
+}
+
+static u32 GetFieldMoveUserSlot(void)
+{
+    u32 slot = GetFirstUsablePartyMonSlot();
+
+    return (slot == PARTY_SIZE) ? 0 : slot;
+}
+
+static bool8 StartMenuDigCallback(void)
+{
+    gFieldEffectArguments[0] = GetFieldMoveUserSlot();
+
+    RemoveExtraStartMenuWindows();
+    HideStartMenu(); // closes the menu, unfreezes objects and unlocks controls
+    // The normal route goes through FieldCallback_Dig, but that reads its user
+    // from the party-menu cursor (GetCursorSelectionMonId), which doesn't exist
+    // here - so set the user above and run the script directly instead.
+    Overworld_ResetStateAfterDigEscRope();
+    ScriptContext_SetupScript(EventScript_UseDig);
+    return TRUE;
+}
+
+static bool8 StartMenuFlyCallback(void)
+{
+    gFieldEffectArguments[0] = GetFieldMoveUserSlot();
+
+    RemoveExtraStartMenuWindows();
+    HideStartMenuDebug(); // hide the menu without re-enabling player movement
+    FreezeObjectEvents();
+    // Without this, backing out of the fly map would drop us in the party menu
+    // (its vanilla cancel destination, since that's where Fly is normally
+    // chosen) rather than back in the overworld.
+    FlyMap_SetReturnToOverworldOnCancel(TRUE);
+    SetMainCallback2(CB2_OpenFlyMap);
     return TRUE;
 }
 

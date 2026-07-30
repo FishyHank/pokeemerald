@@ -5,8 +5,10 @@
 #include "event_object_movement.h"
 #include "field_camera.h"
 #include "field_control_avatar.h"
+#include "event_scripts.h"
 #include "field_effect.h"
 #include "field_effect_helpers.h"
+#include "field_move.h"
 #include "field_screen_effect.h"
 #include "field_player_avatar.h"
 #include "fieldmap.h"
@@ -1323,6 +1325,22 @@ void PlayerOnBikeCollideWithFarawayIslandMew(enum Direction direction)
 
 static void PlayerNotOnBikeCollide(enum Direction direction)
 {
+    // Walking straight into surfable water offers to Surf rather than just
+    // bumping. Conditions deliberately mirror the A-press path in
+    // GetInteractedWaterScript (src/field_control_avatar.c) exactly, so both
+    // routes agree on when Surf is available. By the time a collision is
+    // reported the player has already turned to face the tile they tried to
+    // walk into, so the facing-based check below is accurate.
+    if (OW_SURF_PROMPT_ON_BUMP
+     && IsFieldMoveUnlocked(FIELD_MOVE_SURF)
+     && PartyHasMonWithSurf() == TRUE
+     && IsPlayerFacingSurfableFishableWater() == TRUE
+     && CheckFollowerNPCFlag(FOLLOWER_NPC_FLAG_CAN_SURF))
+    {
+        ScriptContext_SetupScript(EventScript_UseSurf);
+        return;
+    }
+
     PlayCollisionSoundIfNotFacingWarp(direction);
     PlayerSetAnimId(GetWalkInPlaceSlowMovementAction(direction), COPY_MOVE_WALK_COLLIDE_SLOW);
 }
@@ -1617,12 +1635,43 @@ enum Gender GetPlayerAvatarGenderByGraphicsId(u16 gfxId)
     }
 }
 
+// The party member that performs a badge-authorized field move: the first
+// non-egg, non-fainted one. Every badge-only path needs this same answer - the
+// script command that reports the user to "<mon> used CUT!", the pause menu's
+// FLY/DIG animation, and the Surf check below - so they share it rather than
+// each deciding for themselves. Returns PARTY_SIZE when nothing is usable.
+u32 GetFirstUsablePartyMonSlot(void)
+{
+    u32 i;
+
+    for (i = 0; i < PARTY_SIZE; i++)
+    {
+        if (GetMonData(&gParties[B_TRAINER_PLAYER][i], MON_DATA_SPECIES) == SPECIES_NONE)
+            break;
+        if (!GetMonData(&gParties[B_TRAINER_PLAYER][i], MON_DATA_IS_EGG)
+         && GetMonData(&gParties[B_TRAINER_PLAYER][i], MON_DATA_HP) > 0)
+            return i;
+    }
+
+    return PARTY_SIZE;
+}
+
 bool8 PartyHasMonWithSurf(void)
 {
     u8 i;
 
     if (!TestPlayerAvatarFlags(PLAYER_AVATAR_FLAG_SURFING))
     {
+        // Under OW_HMS_BADGE_ONLY the Balance Badge alone authorizes Surf, so
+        // don't also demand that something in the party knows the move - with
+        // randomized learnsets Surf may never be rollable, which would leave
+        // every water crossing permanently blocked. Every caller pairs this
+        // with its own IsFieldMoveUnlocked(FIELD_MOVE_SURF) badge check, so
+        // this stays gated; it just stops being a moveset lookup. Still
+        // requires a usable Pokemon to be riding.
+        if (OW_HMS_BADGE_ONLY)
+            return GetFirstUsablePartyMonSlot() != PARTY_SIZE;
+
         for (i = 0; i < PARTY_SIZE; i++)
         {
             if (GetMonData(&gParties[B_TRAINER_PLAYER][i], MON_DATA_SPECIES) == SPECIES_NONE)

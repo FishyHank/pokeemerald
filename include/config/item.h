@@ -23,6 +23,7 @@
 #define I_LAX_INCENSE_BOOST             GEN_LATEST  // In Gen4+, Lax Incense increases evasion by 10% instead of 5%.
 
 // TM config
+#define I_TM_NAMES_SHOW_MOVE    TRUE        // If TRUE, TMs display as "TM01 - Dragon Claw" instead of "TM01". The number is kept so the TM list still reads as an ordered set you can track; the move name is what makes it readable once RANDOMIZER_TM_MOVES_ENABLED means the number tells you nothing.
 #define I_REUSABLE_TMS          FALSE       // In Gen5-8, TMs are reusable. Setting this to TRUE will make all vanilla TMs reusable, though they can also be cherry-picked by setting their importance to 1.
 
 // Exp. Share config

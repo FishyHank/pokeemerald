@@ -84,6 +84,7 @@
 enum {
     MENU_SUMMARY,
     MENU_AUTO_LEVEL,
+    MENU_EVOLVE,
     MENU_SWITCH,
     MENU_CANCEL1,
     MENU_ITEM,
@@ -136,6 +137,7 @@ enum {
 };
 
 static const u8 sText_LevelToCap[] = _("LEVEL TO CAP"); // added for level to cap functionality
+static const u8 sText_Evolve[] = _("EVOLVE");
 
 enum {
     PARTY_BOX_LEFT_COLUMN,
@@ -478,6 +480,8 @@ static void CursorCb_Trade1(u8);
 static void CursorCb_Trade2(u8);
 static void CursorCb_Toss(u8);
 static void CursorCb_AutoLevel(u8);
+static void CursorCb_Evolve(u8);
+static bool32 CanShowEvolveOption(struct Pokemon *mon);
 static void Task_AutoLevelYesNo(u8);
 static void Task_HandleAutoLevelYesNoInput(u8);
 static void CursorCb_FieldMove(u8);
@@ -2988,6 +2992,8 @@ static void SetPartyMonFieldSelectionActions(struct Pokemon *mons, u8 slotId)
     }
     if (!GetMonData(&mons[slotId], MON_DATA_IS_EGG))
         AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_AUTO_LEVEL);
+    if (CanShowEvolveOption(&mons[slotId]))
+        AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_EVOLVE);
 
     AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_CANCEL1);
 }
@@ -6007,10 +6013,20 @@ static void Task_TryLearnNewMoves(u8 taskId)
 static void Task_TryLearningNextMove(u8 taskId)
 {
     u16 result;
-    for (; sInitialLevel <= sFinalLevel; sInitialLevel++)
+    // We're re-entering right after a match was found at sInitialLevel (the
+    // player just dismissed a "learned move"/"already knows"/"replace move"
+    // prompt), so the first check here must stay firstMove=FALSE to look for
+    // a SECOND move at that same level. But if that comes back empty and the
+    // loop below advances to a level nobody has scanned yet this session,
+    // that level needs a fresh firstMove=TRUE scan - reusing FALSE there
+    // left the search sitting on a stale index and silently found nothing,
+    // even when that level's move existed.
+    bool8 firstMove = FALSE;
+
+    for (; sInitialLevel <= sFinalLevel; sInitialLevel++, firstMove = TRUE)
     {
         SetMonData(&gParties[B_TRAINER_PLAYER][gPartyMenu.slotId], MON_DATA_LEVEL, &sInitialLevel);
-        result = MonTryLearningNewMove(&gParties[B_TRAINER_PLAYER][gPartyMenu.slotId], FALSE);
+        result = MonTryLearningNewMove(&gParties[B_TRAINER_PLAYER][gPartyMenu.slotId], firstMove);
         switch (result)
         {
         case 0: // No moves to learn
@@ -8610,6 +8626,55 @@ static u8 IndividualToCombinedPartyId(u8 index, enum BattlerId battler)
     if (IsMultiBattle() == TRUE && !AreMultiPartiesFullTeams() && (GetBattlerPosition(battler) & BIT_FLANK))
         return index + MULTI_PARTY_SIZE;
     return index;
+}
+
+// Only Eevee, and only when something would actually come of it - the row is
+// hidden rather than shown-and-refused, so it never reads as broken. Eevee is
+// the one species whose level-up evolutions were converted to script triggers
+// (see gen_1_families.h), so it's the only one that needs a manual trigger.
+static bool32 CanShowEvolveOption(struct Pokemon *mon)
+{
+    bool32 canStopEvo = FALSE;
+
+    if (GetMonData(mon, MON_DATA_IS_EGG))
+        return FALSE;
+    if (GetMonData(mon, MON_DATA_SPECIES) != SPECIES_EEVEE)
+        return FALSE;
+
+    return GetEvolutionTargetSpecies(mon, EVO_MODE_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE,
+                                     NULL, &canStopEvo, CHECK_EVO) != SPECIES_NONE;
+}
+
+static void CursorCb_Evolve(u8 taskId)
+{
+    struct Pokemon *mon = &gParties[B_TRAINER_PLAYER][gPartyMenu.slotId];
+    bool32 canStopEvo = FALSE;
+    u32 targetSpecies;
+
+    PlaySE(SE_SELECT);
+
+    // Re-checked rather than trusting CanShowEvolveOption: the menu was built
+    // before the player could have moved the held stone around, and a stale
+    // answer here would mean evolving into the wrong Eeveelution.
+    targetSpecies = GetEvolutionTargetSpecies(mon, EVO_MODE_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE,
+                                              NULL, &canStopEvo, CHECK_EVO);
+    if (targetSpecies == SPECIES_NONE)
+    {
+        gPartyMenuUseExitCallback = FALSE;
+        DisplayPartyMenuMessage(gText_WontHaveEffect, TRUE);
+        ScheduleBgCopyTilemapToVram(2);
+        gTasks[taskId].func = Task_ReturnToChooseMonAfterText;
+        return;
+    }
+
+    // Second call with DO_EVO commits the bookkeeping the CHECK_EVO pass only
+    // simulated - same two-call shape the script command uses.
+    GetEvolutionTargetSpecies(mon, EVO_MODE_SCRIPT_TRIGGER, EVO_TRIGGER_EEVEE_CHOICE,
+                              NULL, &canStopEvo, DO_EVO);
+
+    gCB2_AfterEvolution = gPartyMenu.exitCallback;
+    BeginEvolutionScene(mon, targetSpecies, canStopEvo, gPartyMenu.slotId);
+    FreePartyPointers();
 }
 
 static void CursorCb_AutoLevel(u8 taskId)

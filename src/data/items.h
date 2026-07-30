@@ -2289,6 +2289,40 @@ const struct ItemInfo gItemsInfo[] =
         .iconPalette = gItemIconPalette_Repel,
     },
 
+    [ITEM_INFINITE_REPEL] =
+    {
+        .name = ITEM_NAME("Repel Toggle"),
+        .price = 0,
+        .description = COMPOUND_STRING(
+            "Toggles all wild\n"
+            "Pokémon appearing\n"
+            "on and off."),
+        .importance = 1, // key item: can't be sold, tossed, or consumed
+        .pocket = POCKET_KEY_ITEMS,
+        .type = ITEM_USE_FIELD,
+        .fieldUseFunc = ItemUseOutOfBattle_InfiniteRepel,
+        .iconPic = gItemIcon_Repel,
+        .iconPalette = gItemIconPalette_Repel,
+    },
+
+    [ITEM_PARTY_HEAL] =
+    {
+        .name = ITEM_NAME("Party Heal"),
+        .price = 0,
+        .description = COMPOUND_STRING(
+            "Fully restores\n"
+            "your party's HP,\n"
+            "PP and status."),
+        // Key item: never consumed, never sold, never tossed. POCKET_KEY_ITEMS
+        // is what actually makes it reusable - see the Linking Cord note.
+        .importance = 1,
+        .pocket = POCKET_KEY_ITEMS,
+        .type = ITEM_USE_FIELD,
+        .fieldUseFunc = ItemUseOutOfBattle_PartyHeal,
+        .iconPic = gItemIcon_LargePotion,
+        .iconPalette = gItemIconPalette_FullRestore,
+    },
+
     [ITEM_SUPER_REPEL] =
     {
         .name = ITEM_NAME("Super Repel"),
@@ -14878,7 +14912,7 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("Scroll of Darkness"),
         .pluralName = ITEM_PLURAL_NAME("Scrolls of Darkness"),
-        .price = 0,
+        .price = 8000,
         .description = COMPOUND_STRING(
             "A peculiar scroll\n"
             "with secrets of\n"
@@ -14897,7 +14931,7 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("Scroll of Waters"),
         .pluralName = ITEM_PLURAL_NAME("Scrolls of Waters"),
-        .price = 0,
+        .price = 8000,
         .description = COMPOUND_STRING(
             "A peculiar scroll\n"
             "with secrets of\n"
@@ -15259,10 +15293,18 @@ const struct ItemInfo gItemsInfo[] =
         .name = ITEM_NAME("Linking Cord"),
         .price = 8000,
         .description = COMPOUND_STRING(
-            "A mysterious string\n"
-            "that makes some\n"
-            "Pokémon evolve."),
-        .pocket = POCKET_ITEMS,
+            "Evolves Pokémon\n"
+            "that would need\n"
+            "trading. Reusable."),
+        // Key item, so it's bought once and never consumed. The consumption
+        // check in ItemUseCB_EvolutionStone keys on the POCKET, not importance
+        // (party_menu.c: "if pocket != POCKET_KEY_ITEMS, RemoveBagItem"), so
+        // the pocket move is what actually makes it infinite - importance
+        // alone would not. Ordinary evolution stones are deliberately left
+        // consumable; only the Cord is reusable, because it stands in for the
+        // trade requirement rather than being a normal purchasable stone.
+        .importance = 1,
+        .pocket = POCKET_KEY_ITEMS,
         .sortType = ITEM_TYPE_EVOLUTION_ITEM,
         .type = ITEM_USE_PARTY_MENU,
         .fieldUseFunc = ItemUseOutOfBattle_EvolutionStone,

@@ -10,6 +10,7 @@
 #include "palette.h"
 #include "pokedex.h"
 #include "pokemon.h"
+#include "randomizer.h"
 #include "scanline_effect.h"
 #include "sound.h"
 #include "sprite.h"
@@ -108,17 +109,6 @@ static const u8 sStarterLabelCoords[STARTER_MON_COUNT][2] =
     {0, 9},
     {16, 10},
     {8, 4},
-};
-
-#define GRASS_STARTER (IS_FRLG ? SPECIES_BULBASAUR  : SPECIES_TREECKO)
-#define FIRE_STARTER  (IS_FRLG ? SPECIES_CHARMANDER : SPECIES_TORCHIC)
-#define WATER_STARTER (IS_FRLG ? SPECIES_SQUIRTLE   : SPECIES_MUDKIP )
-
-static const u16 sStarterMon[STARTER_MON_COUNT] =
-{
-    GRASS_STARTER,
-    FIRE_STARTER,
-    WATER_STARTER,
 };
 
 static const struct BgTemplate sBgTemplates[3] =
@@ -346,12 +336,27 @@ static const struct SpriteTemplate sSpriteTemplate_StarterCircle =
     .callback = SpriteCB_StarterPokemon
 };
 
+#define GRASS_STARTER (IS_FRLG ? SPECIES_BULBASAUR  : SPECIES_TREECKO)
+#define FIRE_STARTER  (IS_FRLG ? SPECIES_CHARMANDER : SPECIES_TORCHIC)
+#define WATER_STARTER (IS_FRLG ? SPECIES_SQUIRTLE   : SPECIES_MUDKIP )
+
+static const u16 sStarterMon[STARTER_MON_COUNT] =
+{
+    GRASS_STARTER,
+    FIRE_STARTER,
+    WATER_STARTER,
+};
+
 // .text
 u16 GetStarterPokemon(u16 chosenStarterId)
 {
     if (chosenStarterId > STARTER_MON_COUNT)
         chosenStarterId = 0;
+#if RANDOMIZER_STARTERS_ENABLED
+    return Randomizer_GetStarterSpecies(chosenStarterId);
+#else
     return sStarterMon[chosenStarterId];
+#endif
 }
 
 static void VblankCB_StarterChoose(void)

@@ -22,4 +22,9 @@ u32 GetCurrentLevelCap(void);
 u32 GetSoftLevelCapExpValue(u32 level, u32 expValue);
 u32 GetCurrentEVCap(void);
 
+// Raw list of level-cap thresholds (badge/champion levels), independent of
+// current save progress. Returns 0 if B_LEVEL_CAP_TYPE isn't LEVEL_CAP_FLAG_LIST.
+u32 GetLevelCapThresholdCount(void);
+u32 GetLevelCapThresholdLevel(u32 index);
+
 #endif /* GUARD_CAPS_H */

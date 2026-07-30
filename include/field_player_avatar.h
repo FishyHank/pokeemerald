@@ -47,6 +47,9 @@ void SetPlayerAvatarStateMask(u8 flags);
 u16 GetPlayerAvatarGraphicsIdByStateId(u8 state);
 u8 GetJumpSpecialMovementAction(u32);
 bool8 PartyHasMonWithSurf(void);
+// First non-egg, non-fainted party slot, or PARTY_SIZE if there is none.
+// Shared by every OW_HMS_BADGE_ONLY path so they agree on the field move user.
+u32 GetFirstUsablePartyMonSlot(void);
 bool8 IsPlayerFacingSurfableFishableWater(void);
 bool8 IsPlayerSurfingNorth(void);
 void SetPlayerAvatarWatering(enum Direction direction);
