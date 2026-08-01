@@ -870,7 +870,14 @@ static const u8 sText_TMNameSeparator[] = _(" - ");
 // move is ever added to FOREACH_TM - the display would clip, but memory stays
 // intact. Today's longest TM move is "Secret Power" (12), giving 19 chars,
 // which still fits ITEM_NAME_LENGTH (20) with nothing truncated.
-static EWRAM_DATA u8 sTMNameBuffers[2][8 + MOVE_NAME_LENGTH + 1] = {0};
+// Sized to the ITEM NAME contract, not to the move name. Every caller assumes
+// an item name fits ITEM_NAME_LENGTH: shop.c keeps them in [ITEM_NAME_LENGTH+2]
+// slots, so a longer string runs into the NEXT item's slot and corrupts it.
+// A randomized TM can hold a 16-char move ("Stomping Tantrum"), which with the
+// "TM01 - " prefix would be 23 characters. The move name is therefore truncated
+// to whatever room is left rather than the prefix being dropped, so the TM
+// number - the part that identifies which TM you're missing - always survives.
+static EWRAM_DATA u8 sTMNameBuffers[2][ITEM_NAME_LENGTH + 1] = {0};
 static EWRAM_DATA u8 sTMNameBufferIndex = 0;
 #endif
 
@@ -894,10 +901,28 @@ const u8 *GetItemName(enum Item itemId)
             // the vanilla "TM01" names) so the TM list still reads as an
             // ordered set - you can see at a glance which numbers you're
             // still missing in a seed - while the move name says what it does.
+            const u8 *moveName;
+            u32 used, room;
+
             end = StringCopy(buffer, sText_TMNamePrefix);
             end = ConvertIntToDecimalStringN(end, tmIndex, STR_CONV_MODE_LEADING_ZEROS, 2);
             end = StringCopy(end, sText_TMNameSeparator);
-            StringCopy(end, GetMoveName(GetTMHMMoveId(tmIndex)));
+
+            // Clip the move name to the space left inside ITEM_NAME_LENGTH.
+            // StringCopyN does NOT terminate, so the EOS below is required.
+            moveName = GetMoveName(GetTMHMMoveId(tmIndex));
+            used = end - buffer;
+            room = ITEM_NAME_LENGTH - used;
+
+            if (StringLength(moveName) > room)
+            {
+                StringCopyN(end, moveName, room);
+                end[room] = EOS;
+            }
+            else
+            {
+                StringCopy(end, moveName);
+            }
             return buffer;
         }
     }

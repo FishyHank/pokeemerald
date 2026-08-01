@@ -3,6 +3,7 @@
 #include "ow_abilities.h"
 #include "pokemon.h"
 #include "random.h"
+#include "randomizer.h"
 #include "roamer.h"
 
 // Despite having a variable to track it, the roamer is
@@ -14,6 +15,11 @@ enum
     MAP_GRP, // map group
     MAP_NUM, // map number
 };
+
+// Latias/Latios are level 40 in vanilla Emerald. Named so InitRoamer can pass
+// the same value to both the randomizer (which bands its pool by level) and
+// TryAddRoamer, instead of repeating the literal.
+#define ROAMER_LEVEL 40
 
 #define ROAMER(index) (&gSaveBlock1Ptr->roamer[index])
 EWRAM_DATA static u8 sLocationHistory[ROAMER_COUNT][3][2] = {0};
@@ -155,10 +161,27 @@ bool8 TryAddRoamer(enum Species species, u8 level)
 // gSpecialVar_0x8004 here corresponds to the options in the multichoice MULTI_TV_LATI (0 for 'Red', 1 for 'Blue')
 void InitRoamer(void)
 {
-    if (gSpecialVar_0x8004 == 0) // Red
-        TryAddRoamer(SPECIES_LATIAS, 40);
-    else
-        TryAddRoamer(SPECIES_LATIOS, 40);
+    enum Species species = (gSpecialVar_0x8004 == 0) ? SPECIES_LATIAS : SPECIES_LATIOS;
+    u32 level = ROAMER_LEVEL;
+
+#if RANDOMIZER_STATIC_ENCOUNTERS_ENABLED
+    // The roamer is the 7th and last reachable legendary, and it reaches the
+    // player through neither of the other two paths - not setwildbattle (the
+    // overworld statics) and not seteventmon (the ticket legendaries) - so it
+    // needs its own call or it would be the one vanilla legendary left.
+    //
+    // Keyed off the vanilla species like every other static, so Red and Blue
+    // still lead to different Pokemon. Level 40 puts it in the mid BST band,
+    // the same tier the three Regis draw from.
+    species = Randomizer_GetStaticEncounterSpecies(species, ROAMER_LEVEL);
+    // Same ordering rule as ScrCmd_setwildbattle: species banded off the
+    // vanilla level above, level scaled afterwards. A no-op today - the roamer
+    // is created post-champion, where the cap (78) is already above 40 - but it
+    // keeps the two call sites honest if either number ever moves.
+    level = Randomizer_GetStaticEncounterLevel(ROAMER_LEVEL);
+#endif
+
+    TryAddRoamer(species, level);
 }
 
 void UpdateLocationHistoryForRoamer(void)

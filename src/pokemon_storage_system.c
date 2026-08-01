@@ -24,6 +24,7 @@
 #include "overworld.h"
 #include "palette.h"
 #include "pc_screen_effect.h"
+#include "caps.h"
 #include "pokemon.h"
 #include "pokemon_icon.h"
 #include "pokemon_summary_screen.h"
@@ -134,6 +135,7 @@ enum {
     MENU_SUMMARY,
     MENU_RELEASE,
     MENU_MARK,
+    MENU_LEVEL_CAP,
     MENU_JUMP,
     MENU_WALLPAPER,
     MENU_NAME,
@@ -458,7 +460,11 @@ struct PokemonStorageSystemData
     s8 iconScrollDirection; // Unnecessary duplicate of scrollDirection
     u8 iconScrollState;
     struct WindowTemplate menuWindow;
-    struct StorageMenu menuItems[7];
+    // Was 7, which the mon menu filled exactly once LEVEL was added (MOVE,
+    // SUMMARY, LEVEL, WITHDRAW, MARK, RELEASE, CANCEL). SetMenuText silently
+    // drops anything past the end and CANCEL is appended last, so at exactly
+    // full the player would have lost the CANCEL row. Kept one spare.
+    struct StorageMenu menuItems[8];
     u8 menuItemsCount;
     u8 menuWidth;
     u16 menuWindowId;
@@ -599,6 +605,8 @@ static u8 HandleInput(void);
 static void AddBoxOptionsMenu(void);
 static u8 SetSelectionMenuTexts(void);
 static bool8 SetMenuTexts_Mon(void);
+static bool32 CanLevelCursorMonToCap(void);
+static bool32 TryLevelCursorMonToCap(void);
 static bool8 SetMenuTexts_Item(void);
 
 // Choose box menu
@@ -2660,6 +2668,18 @@ static void Task_OnSelectedMon(u8 taskId)
         case MENU_MARK:
             PlaySE(SE_SELECT);
             SetPokeStorageTask(Task_ShowMarkMenu);
+            break;
+        case MENU_LEVEL_CAP:
+            // Immediate action rather than its own task - there's no animation
+            // or confirmation to sequence, unlike the party menu version which
+            // has a level-up stats window to show.
+            TryLevelCursorMonToCap();
+            PlaySE(SE_EXP);
+            // The box/party panel caches the displayed level, so without this
+            // the mon would keep showing its old one until the cursor moved.
+            RefreshDisplayMonData();
+            ClearBottomWindow();
+            SetPokeStorageTask(Task_PokeStorageMain);
             break;
         case MENU_TAKE:
             PlaySE(SE_SELECT);
@@ -7755,6 +7775,33 @@ static u8 SetSelectionMenuTexts(void)
         return SetMenuTexts_Item();
 }
 
+// Whether the LEVEL row is worth offering for whatever the cursor is on. Kept
+// off for eggs, empty slots and anything already at or over the cap, so the row
+// is never a dead option - the same rule the pause menu's travel row follows.
+static bool32 CanLevelCursorMonToCap(void)
+{
+    struct BoxPokemon *boxMon = GetCursorBoxMon();
+
+    if (GetBoxMonData(boxMon, MON_DATA_SPECIES) == SPECIES_NONE)
+        return FALSE;
+    if (GetBoxMonData(boxMon, MON_DATA_IS_EGG))
+        return FALSE;
+
+    return GetLevelFromBoxMonExp(boxMon) < GetCurrentLevelCap();
+}
+
+// The cursor sits on party Pokemon as well as boxed ones, and the two need
+// different treatment: a party mon carries precomputed stats that a raw EXP
+// write would leave stale, so it goes through the full-struct path. A boxed mon
+// has no stats to update - they're derived on withdrawal - so EXP is enough.
+static bool32 TryLevelCursorMonToCap(void)
+{
+    if (sInPartyMenu)
+        return AutoLevelMonToCap(&gParties[B_TRAINER_PLAYER][sCursorPosition]);
+
+    return AutoLevelBoxMonToCap(GetCursorBoxMon());
+}
+
 static bool8 SetMenuTexts_Mon(void)
 {
     enum Species species = GetSpeciesAtCursorPosition();
@@ -7808,6 +7855,10 @@ static bool8 SetMenuTexts_Mon(void)
         else
             SetMenuText(MENU_STORE);
     }
+
+    // Level to Cap, without having to withdraw the mon first.
+    if (sStorage->boxOption != OPTION_SELECT_MON && CanLevelCursorMonToCap())
+        SetMenuText(MENU_LEVEL_CAP);
 
     SetMenuText(MENU_MARK);
     if (sStorage->boxOption != OPTION_SELECT_MON)
@@ -8081,6 +8132,7 @@ static const u8 *const sMenuTexts[] =
     [MENU_SUMMARY]    = COMPOUND_STRING("SUMMARY"),
     [MENU_RELEASE]    = COMPOUND_STRING("RELEASE"),
     [MENU_MARK]       = COMPOUND_STRING("MARK"),
+    [MENU_LEVEL_CAP]  = COMPOUND_STRING("LEVEL"),
     [MENU_JUMP]       = COMPOUND_STRING("JUMP"),
     [MENU_WALLPAPER]  = COMPOUND_STRING("WALLPAPER"),
     [MENU_NAME]       = COMPOUND_STRING("NAME"),

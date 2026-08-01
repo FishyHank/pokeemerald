@@ -44,6 +44,7 @@
 #include "pokedex.h"
 #include "pokemon_storage_system.h"
 #include "random.h"
+#include "randomizer.h"
 #include "overworld.h"
 #include "rotating_tile_puzzle.h"
 #include "rtc.h"
@@ -2542,6 +2543,24 @@ bool8 ScrCmd_setwildbattle(struct ScriptContext *ctx)
     enum Item item2 = ScriptReadHalfword(ctx);
 
     Script_RequestEffects(SCREFF_V1);
+
+#if RANDOMIZER_STATIC_ENCOUNTERS_ENABLED
+    // Single chokepoint for every scripted battle in the game, so the overworld
+    // legendaries are covered here without touching their scripts. Only
+    // legendaries are substituted - see Randomizer_GetStaticEncounterSpecies.
+    //
+    // ORDER MATTERS: the species rolls FIRST, off the vanilla level, and only
+    // then is the level scaled. The species roll bands its pool by the level it
+    // is given, so doing this the other way round would hand a scaled-down
+    // Rayquaza the mid-BST pool and quietly cost it the tier it should keep.
+    species = Randomizer_GetStaticEncounterSpecies(species, level);
+    if (species2 != SPECIES_NONE)
+        species2 = Randomizer_GetStaticEncounterSpecies(species2, level2);
+
+    level = Randomizer_GetStaticEncounterLevel(level);
+    if (species2 != SPECIES_NONE)
+        level2 = Randomizer_GetStaticEncounterLevel(level2);
+#endif
 
     if (species2 == SPECIES_NONE)
     {

@@ -758,6 +758,26 @@ static void Task_AccessPokemonBoxLink(u8 taskId)
     DestroyTask(taskId);
 }
 
+// PC Link (ITEM_POKEMON_BOX_LINK). Deliberately runs the FULL PC script rather
+// than EventScript_AccessPokemonBoxLink, which opens Pokemon Storage alone -
+// this way the key item also reaches the Player's PC for item storage, exactly
+// as walking up to a real PC would.
+//
+// Safe to use in the open field: EventScript_PC's DoPCTurnOnEffect, and the
+// DoPCTurnOffEffect it exits through, both bail out on IsPlayerInFrontOfPC(),
+// so neither stamps a PC metatile onto whatever tile you happen to be facing.
+static void Task_AccessPCLink(u8 taskId)
+{
+    ScriptContext_SetupScript(EventScript_PC);
+    DestroyTask(taskId);
+}
+
+void ItemUseOutOfBattle_PCLink(u8 taskId)
+{
+    sItemUseOnFieldCB = Task_AccessPCLink;
+    SetUpItemUseOnFieldCallback(taskId);
+}
+
 void ItemUseOutOfBattle_CoinCase(u8 taskId)
 {
     ConvertIntToDecimalStringN(gStringVar1, GetCoins(), STR_CONV_MODE_LEFT_ALIGN, 4);

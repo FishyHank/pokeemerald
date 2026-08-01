@@ -40,6 +40,11 @@ AncientTomb_EventScript_CaveEntranceMiddle::
 	lockall
 	goto_if_set FLAG_SYS_REGISTEEL_PUZZLE_COMPLETED, AncientTomb_EventScript_BigHoleInWall
 	braillemsgbox AncientTomb_Braille_ShineInTheMiddle
+@ Opens the wall on interaction once the Flash badge is held. Vanilla required
+@ using Flash from the party menu here, which OW_HMS_BADGE_ONLY makes optional
+@ to ever teach - this keeps Registeel reachable. No-op before the badge, so the
+@ braille hint still comes first. Only the MIDDLE panel does this, per the hint.
+	special TryOpenAncientTombWall
 	releaseall
 	end
 

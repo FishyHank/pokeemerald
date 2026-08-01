@@ -8,6 +8,8 @@ void ItemUseOutOfBattle_Itemfinder(u8 taskId);
 void ItemUseOutOfBattle_PokeblockCase(u8 taskId);
 void ItemUseOutOfBattle_CoinCase(u8 taskId);
 void ItemUseOutOfBattle_PokemonBoxLink(u8 taskId);
+// Opens the whole PC (storage + Player's PC), not storage alone.
+void ItemUseOutOfBattle_PCLink(u8 taskId);
 void ItemUseOutOfBattle_PowderJar(u8 taskId);
 void ItemUseOutOfBattle_SSTicket(u8 taskId);
 void ItemUseOutOfBattle_WailmerPail(u8 taskId);

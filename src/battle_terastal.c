@@ -61,7 +61,16 @@ void ApplyBattlerVisualsForTeraAnim(enum BattlerId battler)
 // Returns whether a battler can Terastallize.
 bool32 CanTerastallize(enum BattlerId battler)
 {
-    enum HoldEffect holdEffect = GetBattlerHoldEffectIgnoreNegation(battler);
+    enum HoldEffect holdEffect;
+
+#if !B_ENABLE_TERASTAL
+    // Terastallization is disabled for this hack. Cut off at the single gate
+    // both sides funnel through, so neither the player nor a trainer can reach
+    // it regardless of items, flags or trainer data.
+    return FALSE;
+#endif
+
+    holdEffect = GetBattlerHoldEffectIgnoreNegation(battler);
 
     if (gBattleMons[battler].volatiles.transformed && GET_BASE_SPECIES_ID(gBattleMons[battler].species) == SPECIES_TERAPAGOS)
         return FALSE;

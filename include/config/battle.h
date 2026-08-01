@@ -257,6 +257,12 @@
 #define B_FLAG_INVERSE_BATTLE       0     // If this flag is set, the battle's type effectiveness are inversed. For example, fire is super effective against water.
 #define B_FLAG_AI_VS_AI_BATTLE      0     // If this flag is set, the player's mons will be controlled by the ai next battles.
 #define B_FLAG_DYNAMAX_BATTLE       0     // If this flag is set, the ability to Dynamax in battle is enabled for all trainers.
+// Master switch for Terastallization. FALSE removes the mechanic outright for
+// both the player and the AI. It was already unreachable in practice - the Tera
+// Orb is granted by no script and no trainer has a teraType - but that was an
+// accident of the data rather than a decision, so this makes it explicit and
+// stops a stray teraType or a randomized Orb from quietly switching it back on.
+#define B_ENABLE_TERASTAL           FALSE
 #define B_FLAG_TERA_ORB_CHARGED     0     // If this flag is set, the Tera Orb is charged. It is automatically set upon healing and cleared upon Terastallizing once configured.
 #define B_FLAG_TERA_ORB_NO_COST     0     // If this flag is set, the Tera Orb does not use up its charge upon Terastallization. In S/V, this occurs after an event with Terapagos.
 #define B_FLAG_SLEEP_CLAUSE         0     // If this flag is set, sleep clause is enabled; if the player / AI has already put a Pokémon on the opponent's side to sleep and it is still sleeping, another one can't be put to sleep. AI requires AI_FLAG_CHECK_BAD_MOVE to understand.
@@ -341,6 +347,15 @@
 #define B_INCAPACITATED_CATCH_BONUS     GEN_LATEST // In Gen5+, the catch rate bonus for a mon with sleep or freeze is 2.5x. In Gen4 and below its only a 2x bonus.
 #define B_LOW_LEVEL_CATCH_BONUS         GEN_LATEST // In Gen8, a bonus is added to the catch rate if catching a mon lower than level 20. In Gen9, the bonus is only applied to mons lower than level 13.
 #define B_MISSING_BADGE_CATCH_MALUS     GEN_LATEST // In Gen9, a penalty is added to the catch rate if trying to catch a mon 5 levels above the current obedience level, based on the number of gym badges obtained.
+// Trainer levels are raised toward the player's current level cap. Vanilla
+// levels assume you arrive underlevelled from natural EXP; with a hard level cap
+// and Level-to-Cap the player is always exactly AT the cap, so a Route 102
+// trainer at level 6 against a level 15 party isn't a fight. Levels are only
+// ever raised, never lowered, so anything already tuned above the cap (the
+// Elite Four sit at 49-55 against a 46 cap) is left exactly as designed.
+#define B_TRAINER_LEVEL_CAP_SCALING     TRUE
+#define B_TRAINER_LEVEL_CAP_OFFSET      3          // ordinary trainers land this far below the cap
+#define B_LEADER_LEVEL_CAP_OFFSET       0          // Gym Leaders / Elite Four / Champion land exactly ON it
 #define B_LEGENDARY_MIN_CATCH_RATE      45         // Floor applied to the catch rate of legendary/mythical/Ultra Beast species (0 disables). Vanilla puts 123 of them at 3, the minimum on the scale, which is ~10 Ultra Balls even at 1 HP and asleep - brutal in a Nuzlocke where a legendary is a one-shot encounter. 45 keeps them hard to catch fresh (~21% per Ultra Ball at full HP) but reliable once properly weakened and statused.
 #define B_CRITICAL_CAPTURE              TRUE       // If set to TRUE, Critical Capture will be enabled.
 #define B_CRITICAL_CAPTURE_LOCAL_DEX    TRUE       // If set to FALSE, Critical Capture % is based off of the National Pokedex estimated by enabled generations.

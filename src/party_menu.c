@@ -18,6 +18,7 @@
 #include "evolution_scene.h"
 #include "field_control_avatar.h"
 #include "field_effect.h"
+#include "braille_puzzles.h"
 #include "field_move.h"
 #include "field_player_avatar.h"
 #include "field_screen_effect.h"
@@ -2961,12 +2962,43 @@ static void SetPartyMonSelectionActions(struct Pokemon *mons, u8 slotId, u8 acti
     }
 }
 
+// actions[] has no slack - see AppendPartyMenuAction - and AppendToList does no
+// bounds checking of its own, so every append here goes through this.
+static void AppendPartyMenuAction(u8 action)
+{
+    if (sPartyMenuInternal->numActions >= ARRAY_COUNT(sPartyMenuInternal->actions))
+        return;
+
+    AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, action);
+}
+
+// Under OW_HMS_BADGE_ONLY an HM's field move is driven by the badge, not by a
+// party member knowing it: Cut/Rock Smash/Strength/Surf/Waterfall/Dive fire
+// from walking into the obstacle, and Flash/Fly have their own pause-menu rows.
+// Listing them here as well is dead duplication - the row does nothing the
+// player couldn't already do - and it is what pushed this list past its bound.
+// Non-HM field moves (Dig, Teleport, Softboiled, Sweet Scent, Secret Power) are
+// real moves the mon has to know, so they stay.
+static bool32 ShouldHideFieldMoveFromPartyMenu(u32 fieldMove)
+{
+    if (!OW_HMS_BADGE_ONLY || !IsHMFieldMove(fieldMove))
+        return FALSE;
+
+    // One exception: Registeel's tomb is opened by using Flash from THIS menu
+    // while standing on one specific tile. Nothing else triggers it, so hiding
+    // the row there would make that encounter permanently unobtainable.
+    if (fieldMove == FIELD_MOVE_FLASH && ShouldDoBrailleRegisteelEffect() == TRUE)
+        return FALSE;
+
+    return TRUE;
+}
+
 static void SetPartyMonFieldSelectionActions(struct Pokemon *mons, u8 slotId)
 {
     u8 i, j;
 
     sPartyMenuInternal->numActions = 0;
-    AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_SUMMARY);
+    AppendPartyMenuAction(MENU_SUMMARY);
 
     // Add field moves to action list
     for (i = 0; i < MAX_MON_MOVES; i++)
@@ -2975,7 +3007,8 @@ static void SetPartyMonFieldSelectionActions(struct Pokemon *mons, u8 slotId)
         {
             if (GetMonData(&mons[slotId], i + MON_DATA_MOVE1) == FieldMove_GetMoveId(j))
             {
-                AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, j + MENU_FIELD_MOVES);
+                if (!ShouldHideFieldMoveFromPartyMenu(j))
+                    AppendPartyMenuAction(j + MENU_FIELD_MOVES);
                 break;
             }
         }
@@ -2984,18 +3017,18 @@ static void SetPartyMonFieldSelectionActions(struct Pokemon *mons, u8 slotId)
     if (!InBattlePike())
     {
         if (GetMonData(&mons[1], MON_DATA_SPECIES) != SPECIES_NONE)
-            AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_SWITCH);
+            AppendPartyMenuAction(MENU_SWITCH);
         if (ItemIsMail(GetMonData(&mons[slotId], MON_DATA_HELD_ITEM)))
-            AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_MAIL);
+            AppendPartyMenuAction(MENU_MAIL);
         else
-            AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_ITEM);
+            AppendPartyMenuAction(MENU_ITEM);
     }
     if (!GetMonData(&mons[slotId], MON_DATA_IS_EGG))
-        AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_AUTO_LEVEL);
+        AppendPartyMenuAction(MENU_AUTO_LEVEL);
     if (CanShowEvolveOption(&mons[slotId]))
-        AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_EVOLVE);
+        AppendPartyMenuAction(MENU_EVOLVE);
 
-    AppendToList(sPartyMenuInternal->actions, &sPartyMenuInternal->numActions, MENU_CANCEL1);
+    AppendPartyMenuAction(MENU_CANCEL1);
 }
 
 static u8 GetPartyMenuActionsType(struct Pokemon *mon)
@@ -5574,7 +5607,8 @@ static void DisplayLearnMoveMessageAndClose(u8 taskId, const u8 *str)
     gTasks[taskId].func = Task_ClosePartyMenuAfterText;
 }
 
-// move[1] doesn't use constants cause I don't know if it's actually a move ID storage
+// learnMoveState doesn't use constants cause I don't know if it's actually a move ID storage
+// 0 = taught by TM/HM item, 1 = learned during a level-up sequence, 2 = taught by a move tutor
 
 void ItemUseCB_TMHM(u8 taskId, TaskFunc task)
 {
@@ -5620,7 +5654,7 @@ static void Task_LearnedMove(u8 taskId)
     s16 *move = &gPartyMenu.data1;
     enum Item item = gSpecialVar_ItemId;
 
-    if (move[1] == 0)
+    if (gPartyMenu.learnMoveState == 0)
     {
         AdjustFriendship(mon, FRIENDSHIP_EVENT_LEARN_TMHM);
         if (!GetItemImportance(item))
@@ -5647,13 +5681,13 @@ static void Task_LearnNextMoveOrClosePartyMenu(u8 taskId)
 {
     if (IsFanfareTaskInactive() && ((JOY_NEW(A_BUTTON)) || (JOY_NEW(B_BUTTON))))
     {
-        if (gPartyMenu.data[1] == 1)
+        if (gPartyMenu.learnMoveState == 1)
         {
             Task_TryLearningNextMove(taskId);
         }
         else
         {
-            if (gPartyMenu.data[1] == 2) // never occurs
+            if (gPartyMenu.learnMoveState == 2)
                 gSpecialVar_Result = TRUE;
             Task_ClosePartyMenu(taskId);
         }
@@ -5793,13 +5827,13 @@ static void Task_HandleStopLearningMoveYesNoInput(u8 taskId)
         StringCopy(gStringVar2, GetMoveName(gPartyMenu.data1));
         StringExpandPlaceholders(gStringVar4, gText_MoveNotLearned);
         DisplayPartyMenuMessage(gStringVar4, TRUE);
-        if (gPartyMenu.data[1] == 1)
+        if (gPartyMenu.learnMoveState == 1)
         {
             gTasks[taskId].func = Task_TryLearningNextMoveAfterText;
         }
         else
         {
-            if (gPartyMenu.data[1] == 2) // never occurs
+            if (gPartyMenu.learnMoveState == 2)
                 gSpecialVar_Result = FALSE;
             gTasks[taskId].func = Task_ClosePartyMenuAfterText;
         }
@@ -7067,16 +7101,14 @@ enum ItemEffectType GetItemEffectType(enum Item item)
 static void TryTutorSelectedMon(u8 taskId)
 {
     struct Pokemon *mon;
-    s16 *move;
 
     if (!gPaletteFade.active)
     {
         mon = &gParties[B_TRAINER_PLAYER][gPartyMenu.slotId];
-        move = &gPartyMenu.data1;
         GetMonNickname(mon, gStringVar1);
         gPartyMenu.data1 = gSpecialVar_0x8005;
         StringCopy(gStringVar2, GetMoveName(gPartyMenu.data1));
-        move[1] = 2;
+        gPartyMenu.learnMoveState = 2;
         switch (CanTeachMove(mon, gPartyMenu.data1))
         {
         case CANNOT_LEARN_MOVE:

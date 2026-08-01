@@ -74,6 +74,7 @@ enum
     MENU_ACTION_DEXNAV,
     MENU_ACTION_FLY,
     MENU_ACTION_DIG,
+    MENU_ACTION_FLASH,
 };
 
 // Save status
@@ -121,6 +122,7 @@ static bool8 StartMenuBattlePyramidBagCallback(void);
 static bool8 StartMenuDebugCallback(void);
 static bool8 StartMenuFlyCallback(void);
 static bool8 StartMenuDigCallback(void);
+static bool8 StartMenuFlashCallback(void);
 // gFieldEffectArguments[0] wants a real party index for the animation, so the
 // "nothing usable" answer (PARTY_SIZE) is clamped to slot 0 here. Reaching that
 // would mean the whole party is fainted or eggs, which the menu rows can't be
@@ -207,6 +209,7 @@ static const struct WindowTemplate sWindowTemplate_PyramidPeak = {
 static const u8 sText_MenuDebug[] = _("DEBUG");
 static const u8 sText_MenuFly[] = _("FLY");
 static const u8 sText_MenuDig[] = _("DIG");
+static const u8 sText_MenuFlash[] = _("FLASH");
 
 static const struct MenuAction sStartMenuItems[] =
 {
@@ -226,6 +229,7 @@ static const struct MenuAction sStartMenuItems[] =
     [MENU_ACTION_DEBUG]           = {sText_MenuDebug,   {.u8_void = StartMenuDebugCallback}},
     [MENU_ACTION_FLY]             = {sText_MenuFly,     {.u8_void = StartMenuFlyCallback}},
     [MENU_ACTION_DIG]             = {sText_MenuDig,     {.u8_void = StartMenuDigCallback}},
+    [MENU_ACTION_FLASH]           = {sText_MenuFlash,   {.u8_void = StartMenuFlashCallback}},
     [MENU_ACTION_DEXNAV]          = {gText_MenuDexNav,  {.u8_void = StartMenuDexNavCallback}},
 };
 
@@ -387,6 +391,17 @@ static void BuildNormalStartMenu(void)
      && IsFieldMoveUnlocked(FIELD_MOVE_FLY)
      && Overworld_MapTypeAllowsTeleportAndFly(gMapHeader.mapType) == TRUE)
         AddStartMenuAction(MENU_ACTION_FLY);
+    // FLASH outranks DIG in an unlit cave: seeing where you are is the more
+    // urgent action, and the moment the cave is lit this same row falls through
+    // to DIG. The test matches SetUpFieldMove_Flash exactly, so the row is only
+    // ever offered where Flash would actually do something - never in a gym
+    // (Dewford's darkness is script-driven setflashlevel, not a cave header)
+    // and never in a cave that's already lit.
+    else if (OW_FLASH_FROM_START_MENU
+     && IsFieldMoveUnlocked(FIELD_MOVE_FLASH)
+     && gMapHeader.cave == TRUE
+     && !FlagGet(FLAG_SYS_USE_FLASH))
+        AddStartMenuAction(MENU_ACTION_FLASH);
     else if (OW_DIG_FROM_START_MENU && CanUseDigOrEscapeRopeOnCurMap() == TRUE)
         AddStartMenuAction(MENU_ACTION_DIG);
 
@@ -859,6 +874,21 @@ static bool8 StartMenuDigCallback(void)
     // here - so set the user above and run the script directly instead.
     Overworld_ResetStateAfterDigEscRope();
     ScriptContext_SetupScript(EventScript_UseDig);
+    return TRUE;
+}
+
+static bool8 StartMenuFlashCallback(void)
+{
+    gFieldEffectArguments[0] = GetFieldMoveUserSlot();
+
+    RemoveExtraStartMenuWindows();
+    HideStartMenu(); // closes the menu, unfreezes objects and unlocks controls
+    // Same reasoning as Dig: the normal route (FieldCallback_Flash) reads its
+    // user from the party-menu cursor, which doesn't exist here. Run what
+    // FldEff_UseFlash would have done, with the user set above.
+    PlaySE(SE_M_REFLECT);
+    FlagSet(FLAG_SYS_USE_FLASH);
+    ScriptContext_SetupScript(EventScript_UseFlash);
     return TRUE;
 }
 

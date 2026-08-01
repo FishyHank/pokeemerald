@@ -1007,5 +1007,8 @@ static inline enum ReturnToIdleOWE OWE_GetReturnToIdleFromSpecies(enum Species s
 }
 
 bool8 AutoLevelMonToCap(struct Pokemon *mon);
+// For a mon still in the PC. Do NOT pass a party mon's .box - see the comment
+// on the definition; party mons must go through AutoLevelMonToCap.
+bool8 AutoLevelBoxMonToCap(struct BoxPokemon *boxMon);
 
 #endif // GUARD_POKEMON_H

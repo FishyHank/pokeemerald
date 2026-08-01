@@ -8,6 +8,7 @@
 #include "item.h"
 #include "constants/characters.h"
 #include "constants/flags.h"
+#include "config/battle.h"
 #include "constants/items.h"
 #include "constants/vars.h"
 #include "event_data.h"
@@ -162,6 +163,109 @@ u16 Randomizer_GetStarterSpecies(u8 starterSlot)
     return Randomizer_GetRandomSpeciesInBSTRange(slotId, STARTER_BST_MIN, STARTER_BST_MAX, FALSE);
 }
 
+// ---------------------------------------------------------------------------
+// Static (scripted) legendary encounters
+// ---------------------------------------------------------------------------
+
+// Pool for a static legendary slot: another legendary, or an ordinary Pokemon
+// strong enough to stand in for one. The BST band does double duty - it keeps
+// the slot level-appropriate AND filters out the weak legendaries, since
+// "legendary" spans Cosmog (200) and Phione (480) as well as Arceus (720).
+static bool32 IsStaticEncounterValidPick(u16 species, u32 bstMin, u32 bstMax)
+{
+    u32 bst;
+
+    if (!IsSpeciesValidRandomizerPick(species))
+        return FALSE;
+
+    bst = Randomizer_GetBST(species);
+    if (bst < bstMin || bst > bstMax)
+        return FALSE;
+
+    // An ordinary species has to clear a higher floor to qualify at all. The
+    // band alone would let mid-tier Pokemon into a legendary's slot.
+    if (!Randomizer_IsLegendaryClass(species)
+     && bst < RANDOMIZER_STATIC_NONLEGENDARY_BST_MIN)
+        return FALSE;
+
+    return TRUE;
+}
+
+// Keyed on the VANILLA species rather than a map or script address, so a seed's
+// answer survives a ROM rebuild and any two slots holding the same legendary
+// agree with each other. Callers pass the encounter's vanilla level, which is
+// what selects the band.
+enum Species Randomizer_GetStaticEncounterSpecies(enum Species vanillaSpecies, u32 level)
+{
+    u32 slotId, attempt, i, start, bstMin, bstMax;
+
+    vanillaSpecies = SanitizeSpeciesId(vanillaSpecies);
+
+    // Non-legendary scripted battles are left alone: Electrode and Voltorb are
+    // obstacle puzzles, Sudowoodo and Kecleon are one-off flavour encounters,
+    // and all four have scripts and overworld sprites tied to the species.
+    if (!Randomizer_IsLegendaryClass(vanillaSpecies))
+        return vanillaSpecies;
+
+    if (level >= RANDOMIZER_STATIC_HIGH_TIER_LEVEL)
+    {
+        bstMin = RANDOMIZER_STATIC_HIGH_BST_MIN;
+        bstMax = RANDOMIZER_STATIC_HIGH_BST_MAX;
+    }
+    else
+    {
+        bstMin = RANDOMIZER_STATIC_MID_BST_MIN;
+        bstMax = RANDOMIZER_STATIC_MID_BST_MAX;
+    }
+
+    slotId = RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_STATIC_ENCOUNTER, vanillaSpecies);
+
+    for (attempt = 0; attempt < RANDOMIZER_MAX_REROLLS; attempt++)
+    {
+        u16 species = 1 + (Randomizer_GetSlotRollAttempt(slotId, attempt) % (NUM_SPECIES - 1));
+
+        if (IsStaticEncounterValidPick(species, bstMin, bstMax))
+            return species;
+    }
+
+    // Never hang, never return an unvalidated roll - scan for a usable one.
+    start = Randomizer_GetSlotRollRange(slotId, 1, NUM_SPECIES - 1);
+
+    for (i = 0; i < NUM_SPECIES - 1; i++)
+    {
+        u16 species = 1 + (((start - 1) + i) % (NUM_SPECIES - 1));
+
+        if (IsStaticEncounterValidPick(species, bstMin, bstMax))
+            return species;
+    }
+
+    // Band empty for this build's species set - keep vanilla rather than
+    // inventing something outside the pool.
+    return vanillaSpecies;
+}
+
+// The level a static encounter actually appears at.
+//
+// Deliberately a SEPARATE function from Randomizer_GetStaticEncounterSpecies,
+// and callers must pass that one the VANILLA level, not the result of this.
+// The species is banded by the vanilla level precisely so that scaling a
+// level-70 Rayquaza down to the cap still draws its replacement from the
+// 600-720 tier. Feed the scaled level into the species roll instead and the
+// pool silently drops to the mid band - you'd lose the BST along with the
+// level, which is exactly what this is meant to avoid.
+u32 Randomizer_GetStaticEncounterLevel(u32 vanillaLevel)
+{
+    u32 target;
+
+    if (!RANDOMIZER_STATIC_SCALE_LEVEL_TO_CAP)
+        return vanillaLevel;
+
+    target = GetCurrentLevelCap() + RANDOMIZER_STATIC_LEVEL_CAP_OFFSET;
+
+    // Lower only - never inflate an encounter that's already under the cap.
+    return (vanillaLevel > target) ? target : vanillaLevel;
+}
+
 // Wild encounter tiers: the level a slot would normally produce (already
 // baked into the vanilla data per-route) stands in for "how far into the
 // game is this". Legendaries only become possible once wild levels get
@@ -205,16 +309,45 @@ u16 Randomizer_GetWildSpeciesForLevel(u32 slotId, u8 level)
 // Randomized tutor moves
 // ---------------------------------------------------------------------------
 
-// A machine/tutor move has to be a real, teachable move. MOVE_NONE and
-// MOVE_STRUGGLE are excluded: Struggle is never meant to be selectable and is a
-// documented failure mode in other randomizer hacks, where it slips into the
+// Moves that NO randomizer domain may ever hand out, by any route - TM, tutor
+// or level-up learnset. Every move-picking path must run a candidate through
+// this before accepting it; a domain that filters only for its own needs will
+// leak these, which is exactly how a Starmobile move reached a level-up
+// learnset in the 2.0 beta.
+//
+// MOVE_NONE and MOVE_STRUGGLE: Struggle is never meant to be selectable and is
+// a documented failure mode in other randomizer hacks, where it slips into the
 // pool and produces a move that can't be used normally.
-static bool8 IsTeachableMoveValidRandomizerPick(u32 move)
+//
+// The five Starmobile "Torque" moves are unimplemented placeholders - their
+// description is literally "---" and they're not obtainable in the source
+// games. They are damaging, correctly typed and normally powered, so they pass
+// every category and power check any domain applies; only an explicit ban stops
+// them.
+static bool8 IsMoveValidRandomizerPick(u32 move)
 {
     if (move == MOVE_NONE || move == MOVE_STRUGGLE || move >= MOVES_COUNT)
         return FALSE;
 
+    switch (move)
+    {
+    case MOVE_BLAZING_TORQUE:
+    case MOVE_WICKED_TORQUE:
+    case MOVE_NOXIOUS_TORQUE:
+    case MOVE_COMBAT_TORQUE:
+    case MOVE_MAGICAL_TORQUE:
+        return FALSE;
+    default:
+        break;
+    }
+
     return TRUE;
+}
+
+// A machine/tutor move has to be a real, teachable move.
+static bool8 IsTeachableMoveValidRandomizerPick(u32 move)
+{
+    return IsMoveValidRandomizerPick(move);
 }
 
 static enum Move PickTeachableMove(u32 slotId)
@@ -567,6 +700,8 @@ static enum Move PickLearnsetMove(u32 slotId, enum Species species, u8 categoryK
             enum Move move = 1 + (roll % (MOVES_COUNT - 1));
             u32 power = GetMovePower(move);
 
+            if (!IsMoveValidRandomizerPick(move))
+                continue;
             if (!MoveMatchesLearnsetCategory(move, species, categoryKind))
                 continue;
             if (pass < 2 && powerMax > 0 && IsMoveDamaging(move) && (power < powerMin || power > powerMax))
@@ -602,6 +737,8 @@ static enum Move PickLearnsetMove(u32 slotId, enum Species species, u8 categoryK
             {
                 enum Move move = 1 + (((start - 1) + i) % (MOVES_COUNT - 1));
 
+                if (!IsMoveValidRandomizerPick(move))
+                    continue;
                 if (!MoveMatchesLearnsetCategory(move, species, categoryKind))
                     continue;
                 if (sweep == 0 && MoveAlreadyChosen(move, chosen, numChosen))
@@ -612,8 +749,24 @@ static enum Move PickLearnsetMove(u32 slotId, enum Species species, u8 categoryK
         }
     }
 
-    // Unreachable unless no move in the game matches the category at all.
-    return 1 + (Randomizer_GetSlotRoll(slotId) % (MOVES_COUNT - 1));
+    // Unreachable unless no move in the game matches the category at all. Even
+    // here, don't hand back an unvalidated roll - that was the one remaining
+    // route by which a banned move could still reach a learnset. Scan for any
+    // legal move instead, dropping the category requirement entirely.
+    {
+        u32 i, start = Randomizer_GetSlotRollRange(slotId, 1, MOVES_COUNT - 1);
+
+        for (i = 0; i < MOVES_COUNT - 1; i++)
+        {
+            enum Move move = 1 + (((start - 1) + i) % (MOVES_COUNT - 1));
+
+            if (IsMoveValidRandomizerPick(move))
+                return move;
+        }
+    }
+
+    // Only if literally every move in the game is banned.
+    return MOVE_POUND;
 }
 
 // Move power bands, tied to level the same way Randomizer_GetWildSpeciesForLevel
@@ -968,14 +1121,69 @@ static bool32 IsTM(enum Item item)
     return item >= ITEM_TM01 && item <= ITEM_TM_LAST_REAL;
 }
 
-// ITEM_TM51..ITEM_TM58 have item entries but no matching FOREACH_TM move: they
-// are placeholders, named literally "TM51" with a ??? description, and teach
-// nothing. They pass every other validity check - real name, real pocket,
-// importance 0 - so they have to be rejected by name here, or hidden items and
-// gifts (which are allowed to roll TMs) would hand out dud machines.
+// Every TM item id past the real ones is a placeholder: it has an item entry but
+// no matching FOREACH_TM move, is named literally "TM70", carries the "?????"
+// description and teaches nothing. They pass every other validity check - real
+// non-empty name, real pocket, and importance 0 because I_REUSABLE_TMS is FALSE
+// - so they have to be rejected explicitly here.
+//
+// The range runs to ITEM_TM100, NOT ITEM_TM58. The item ids continue 582..681
+// (TM01..TM100) even though this game only has 50 real TMs, and ITEM_HM01 is
+// 682, so this stops exactly where the HMs begin. An earlier version of this
+// stopped at ITEM_TM58 and left TM59..TM100 - 42 dud items - reachable by any
+// field, hidden or gift roll. That is exactly what put a "TM.. / ?????" machine
+// that teaches nothing into a real playthrough, so don't shrink this range.
 static bool32 IsPlaceholderTM(enum Item item)
 {
-    return item > ITEM_TM_LAST_REAL && item <= ITEM_TM58;
+    return item > ITEM_TM_LAST_REAL && item <= ITEM_TM100;
+}
+
+// Tera Shards set a Pokemon's Tera type, which is meaningless with
+// B_ENABLE_TERASTAL off. They carry importance 0 and real names, so nothing
+// else here would reject them, and 19 dead items in the loot pool is a lot of
+// wasted field items and gifts.
+static bool32 IsTeraShard(enum Item item)
+{
+    return (item >= ITEM_BUG_TERA_SHARD && item <= ITEM_WATER_TERA_SHARD)
+        || item == ITEM_STELLAR_TERA_SHARD;
+}
+
+// CAREFUL: the Mega Stones and the Z-Crystals are NOT one contiguous block.
+// The 18 Gems (ITEM_NORMAL_GEM..ITEM_FAIRY_GEM) sit between them in the enum,
+// at 339-356, and Gems are perfectly functional single-use damage boosters.
+// Treating 292-391 as one range would silently delete them from the loot pool.
+static bool32 IsMegaStone(enum Item item)
+{
+    return item >= ITEM_VENUSAURITE && item <= ITEM_DIANCITE;
+}
+
+static bool32 IsZCrystal(enum Item item)
+{
+    return item >= ITEM_NORMALIUM_Z && item <= ITEM_ULTRANECROZIUM_Z;
+}
+
+static bool32 IsDynamaxItem(enum Item item)
+{
+    return item == ITEM_DYNAMAX_CANDY || item == ITEM_MAX_MUSHROOMS;
+}
+
+static bool32 IsAbilityChangingItem(enum Item item)
+{
+    return item == ITEM_ABILITY_CAPSULE || item == ITEM_ABILITY_PATCH;
+}
+
+static bool32 IsRepelItem(enum Item item)
+{
+    return item >= ITEM_REPEL && item <= ITEM_MAX_REPEL;
+}
+
+// Rare Candy plus the five Exp Candies. ITEM_DYNAMAX_CANDY sits at the end of
+// this same enum run but is handled by IsDynamaxItem, so this range deliberately
+// stops at ITEM_EXP_CANDY_XL.
+static bool32 IsLevelUpItem(enum Item item)
+{
+    return item == ITEM_RARE_CANDY
+        || (item >= ITEM_EXP_CANDY_XS && item <= ITEM_EXP_CANDY_XL);
 }
 
 // A key item here means anything with a nonzero importance: story items, HMs,
@@ -1004,6 +1212,41 @@ static bool32 IsItemValidRandomizerPick(enum Item item, bool32 allowTMs)
     // Never valid for anything, TMs allowed or not.
     if (IsPlaceholderTM(item))
         return FALSE;
+
+#if !B_ENABLE_TERASTAL
+    if (IsTeraShard(item))
+        return FALSE;
+#endif
+
+#if RANDOMIZER_EXCLUDE_MEGA_STONES
+    if (IsMegaStone(item))
+        return FALSE;
+#endif
+
+#if RANDOMIZER_EXCLUDE_Z_CRYSTALS
+    if (IsZCrystal(item))
+        return FALSE;
+#endif
+
+#if RANDOMIZER_EXCLUDE_DYNAMAX_ITEMS
+    if (IsDynamaxItem(item))
+        return FALSE;
+#endif
+
+#if RANDOMIZER_EXCLUDE_ABILITY_CHANGERS
+    if (IsAbilityChangingItem(item))
+        return FALSE;
+#endif
+
+#if RANDOMIZER_EXCLUDE_REPELS
+    if (IsRepelItem(item))
+        return FALSE;
+#endif
+
+#if RANDOMIZER_EXCLUDE_LEVEL_UP_ITEMS
+    if (IsLevelUpItem(item))
+        return FALSE;
+#endif
 
     if (!allowTMs && IsTM(item))
         return FALSE;

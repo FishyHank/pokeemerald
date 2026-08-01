@@ -12,6 +12,8 @@
 #include "fieldmap.h"
 #include "party_menu.h"
 #include "fldeff.h"
+#include "field_move.h"
+#include "constants/field_move.h"
 
 EWRAM_DATA static bool8 sIsRegisteelPuzzle = 0;
 
@@ -255,6 +257,31 @@ static void DoBrailleRegisteelEffect(void)
     FlagSet(FLAG_SYS_REGISTEEL_PUZZLE_COMPLETED);
     UnlockPlayerFieldControls();
     UnfreezeObjectEvents();
+}
+
+// Interact-to-open path for the Ancient Tomb wall, called from the braille sign
+// script. This puzzle is vanilla's one place where using Flash FROM THE PARTY
+// MENU is the only trigger - there is no obstacle to walk into - so under
+// OW_HMS_BADGE_ONLY, where nothing is ever required to know Flash, the Registeel
+// encounter behind this wall would otherwise be unreachable in a run that never
+// taught it. Gated on the same badge the Flash field move is, so it can't be
+// opened before Flash would legitimately have been usable.
+//
+// Silently does nothing when it doesn't apply: the script calls it
+// unconditionally and just falls through to the braille message.
+void TryOpenAncientTombWall(void)
+{
+    if (!OW_HMS_BADGE_ONLY)
+        return;
+    if (FlagGet(FLAG_SYS_REGISTEEL_PUZZLE_COMPLETED))
+        return;
+    if (!IsFieldMoveUnlocked(FIELD_MOVE_FLASH))
+        return;
+
+    PlaySE(SE_M_REFLECT);
+    // Also unlocks controls and unfreezes objects, which the script's trailing
+    // releaseall would do anyway - doing both is harmless.
+    DoBrailleRegisteelEffect();
 }
 
 // theory: another commented out DoBrailleWait and Task_BrailleWait.

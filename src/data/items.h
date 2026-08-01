@@ -14037,16 +14037,19 @@ const struct ItemInfo gItemsInfo[] =
 
     [ITEM_POKEMON_BOX_LINK] =
     {
-        .name = ITEM_NAME("{PKMN} Box Link"),
+        // Renamed from "{PKMN} Box Link". Granted at the start of every run in
+        // NewGameInitData - the expansion already implemented this item as a
+        // reusable key item, Emerald just never handed it out.
+        .name = ITEM_NAME("PC Link"),
         .price = 0,
         .description = COMPOUND_STRING(
-            "This device grants\n"
-            "access to the {PKMN}\n"
-            "Storage System."),
+            "Opens the {PKMN}\n"
+            "Storage System\n"
+            "from anywhere."),
         .importance = 1,
         .pocket = POCKET_KEY_ITEMS,
         .type = ITEM_USE_FIELD,
-        .fieldUseFunc = ItemUseOutOfBattle_PokemonBoxLink,
+        .fieldUseFunc = ItemUseOutOfBattle_PCLink,
         .iconPic = gItemIcon_PokemonBoxLink,
         .iconPalette = gItemIconPalette_PokemonBoxLink,
     },

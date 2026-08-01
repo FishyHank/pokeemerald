@@ -21,6 +21,7 @@ enum RandomizerSlotDomain
     // Not a slot domain in the usual sense: one fixed slot id used to seed the
     // save's single TM shuffle. See Randomizer_GetFieldItem.
     RANDOMIZER_DOMAIN_TM_ORDER    = 10,
+    RANDOMIZER_DOMAIN_STATIC_ENCOUNTER = 11,
 };
 
 #define RANDOMIZER_SLOT_ID(domain, index) (((u32)(domain) << 24) | ((u32)(index) & 0xFFFFFF))
@@ -37,6 +38,10 @@ u32 Randomizer_GetSlotRollRange(u32 slotId, u32 lo, u32 hi);
 
 // Base Stat Total for a species (sum of all 6 base stats).
 u16 Randomizer_GetBST(u16 species);
+// Pass the encounter's VANILLA level to the species roll - it bands the pool by
+// that level. Scale the level separately, afterwards, with the second function.
+enum Species Randomizer_GetStaticEncounterSpecies(enum Species vanillaSpecies, u32 level);
+u32 Randomizer_GetStaticEncounterLevel(u32 vanillaLevel);
 
 // TRUE if this species is legendary/mythical/ultra-beast class and should be
 // excluded from early-tier rolls.

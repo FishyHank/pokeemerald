@@ -45,6 +45,7 @@
 #include "pokemon.h"
 #include "pokerus.h"
 #include "random.h"
+#include "caps.h"
 #include "randomizer.h"
 #include "recorded_battle.h"
 #include "roamer.h"
@@ -1862,6 +1863,23 @@ void CustomTrainerPartyAssignMoves(struct Pokemon *mon, const struct TrainerMon 
     }
 }
 
+// Gym Leaders, the Elite Four and the Champion are the difficulty walls, so they
+// sit ON the cap while everyone else sits below it. Their vanilla levels were
+// already close - the first six leaders match the cap thresholds exactly - so
+// this mostly just closes the small gap on the last two gyms.
+static bool32 IsCapAlignedTrainerClass(u32 trainerClass)
+{
+    switch (trainerClass)
+    {
+    case TRAINER_CLASS_LEADER:
+    case TRAINER_CLASS_ELITE_FOUR:
+    case TRAINER_CLASS_CHAMPION:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
 u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer *trainer, bool32 halfTeam, u32 battleTypeFlags)
 {
     u32 personalityValue;
@@ -1896,6 +1914,24 @@ u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer 
             struct TrainerMon monCopy = partyData[monIndex];
             struct OriginalTrainerId otId = OTID_STRUCT_RANDOM_NO_SHINY;
             u32 abilityNum = 0;
+
+#if B_TRAINER_LEVEL_CAP_SCALING
+            // Applied BEFORE the species roll below, deliberately: the randomizer
+            // tiers species by level, so scaling first means a raised trainer also
+            // gets Pokemon appropriate to the new level rather than early-game
+            // filler wearing a bigger number.
+            {
+                u32 cap = GetCurrentLevelCap();
+                u32 offset = IsCapAlignedTrainerClass(trainer->trainerClass)
+                             ? B_LEADER_LEVEL_CAP_OFFSET : B_TRAINER_LEVEL_CAP_OFFSET;
+                u32 target = (cap > offset) ? (cap - offset) : 1;
+
+                // Raise only. Lowering would nerf the Elite Four, who are tuned
+                // above the cap on purpose.
+                if (monCopy.lvl < target)
+                    monCopy.lvl = target;
+            }
+#endif
 
 #if RANDOMIZER_TRAINERS_ENABLED
             {

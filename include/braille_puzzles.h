@@ -6,6 +6,7 @@ bool8 ShouldDoBrailleRegirockEffect(void);
 bool8 ShouldDoBrailleDigEffect(void);
 void DoBrailleDigEffect(void);
 void SetUpPuzzleEffectRegisteel(void);
+void TryOpenAncientTombWall(void);
 void SetUpPuzzleEffectRegirock(void);
 
 #endif // GUARD_BRAILLE_PUZZLES_H

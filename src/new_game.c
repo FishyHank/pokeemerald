@@ -222,6 +222,16 @@ void NewGameInitData(void)
     // Portable Poke Center. Granted rather than sold for the same reason as the
     // two above: it's a quality-of-life fixture of this hack, not a reward.
     AddBagItem(ITEM_PARTY_HEAL, 1);
+    // PC Link - portable Pokemon Storage, same reasoning again. This one is NOT
+    // a custom item: ITEM_POKEMON_BOX_LINK already existed in the expansion,
+    // fully implemented as a reusable key item, and was simply never granted by
+    // anything in Emerald. Renamed to "PC Link" in src/data/items.h; no new item
+    // id was added, so nothing shifted in save data.
+    //
+    // Needed because the pause menu is physically full - see the comment on the
+    // travel row in src/start_menu.c - so a key item is the only way to reach
+    // the PC from the field.
+    AddBagItem(ITEM_POKEMON_BOX_LINK, 1);
     NewGameInitPCItems();
     ClearPokeblocks();
     ClearDecorationInventories();
