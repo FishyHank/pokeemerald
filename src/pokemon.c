@@ -7013,32 +7013,3 @@ bool8 AutoLevelMonToCap(struct Pokemon *mon)
 
     return TRUE; // Leveled successfully
 }
-
-// Box version, for levelling a Pokemon from the PC without withdrawing it.
-//
-// Simpler than the party version on purpose: a BoxPokemon stores no computed
-// stats - they're derived when it's withdrawn - so writing EXP is the whole
-// job. There is deliberately no CalculateMonStats call here; there is nothing
-// to recalculate, and no current HP to keep in step either.
-//
-// Careful with a PARTY mon's .box sub-struct: that one DOES carry precomputed
-// stats alongside, and this function would leave them stale. Route party mons
-// through AutoLevelMonToCap instead.
-bool8 AutoLevelBoxMonToCap(struct BoxPokemon *boxMon)
-{
-    u32 targetLevel = GetCurrentLevelCap();
-    u32 currentLevel = GetLevelFromBoxMonExp(boxMon);
-    u16 species;
-    u32 targetExp;
-
-    if (currentLevel >= targetLevel
-     || GetBoxMonData(boxMon, MON_DATA_SPECIES) == SPECIES_NONE
-     || GetBoxMonData(boxMon, MON_DATA_IS_EGG))
-        return FALSE;
-
-    species = GetBoxMonData(boxMon, MON_DATA_SPECIES);
-    targetExp = gExperienceTables[gSpeciesInfo[species].growthRate][targetLevel];
-    SetBoxMonData(boxMon, MON_DATA_EXP, &targetExp);
-
-    return TRUE;
-}

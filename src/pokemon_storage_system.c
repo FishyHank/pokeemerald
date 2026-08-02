@@ -209,6 +209,7 @@ enum {
     SCREEN_CHANGE_SUMMARY_SCREEN,
     SCREEN_CHANGE_NAME_BOX,
     SCREEN_CHANGE_ITEM_FROM_BAG,
+    SCREEN_CHANGE_LEVEL_UP_PARTY,
 };
 
 enum {
@@ -552,6 +553,28 @@ EWRAM_DATA static bool8 sInPartyMenu = 0;
 EWRAM_DATA static u8 sCurrentBoxOption = 0;
 EWRAM_DATA static u8 sDepositBoxId = 0;
 EWRAM_DATA static u8 sWhichToReshow = 0;
+// Where a boxed Pokemon came from while it is temporarily parked in the party
+// for Level to Cap. sLevelUpPartySlot == PARTY_SIZE means "the mon was already
+// in the party" - nothing to move back.
+//
+// SAFETY: the box slot is NOT cleared while the mon is in the party. The copy
+// stays put until the levelled result is written back over it, so an interrupted
+// run (reset mid-evolution, say) leaves a duplicate rather than deleting a
+// Pokemon. In a Nuzlocke a duplicate is recoverable and a deletion is not.
+EWRAM_DATA static u8 sLevelUpBoxId = 0;
+EWRAM_DATA static u8 sLevelUpBoxPos = 0;
+EWRAM_DATA static u8 sLevelUpPartySlot = 0;
+// When the party is full the boxed mon borrows the last slot and its occupant
+// waits here. EWRAM_DATA rather than a plain static so it lands in EWRAM, not
+// the scarce IWRAM, and it holds a VALUE not a heap pointer, so it survives the
+// InitHeap that a screen change (including the evolution scene) can trigger.
+//
+// This is safe because gParties is EWRAM working memory: it only reaches flash
+// via CopyPartyAndObjectsToSave, which is called only from src/save.c. Nothing
+// here persists without an explicit save, and the levelling flow never offers
+// one - so an interrupted run reloads the last save with both Pokemon intact.
+EWRAM_DATA static struct Pokemon sLevelUpDisplacedMon = {0};
+EWRAM_DATA static bool8 sLevelUpDisplaced = FALSE;
 EWRAM_DATA static u8 sLastUsedBox = 0;
 EWRAM_DATA static u16 sMovingItemId = 0;
 EWRAM_DATA static struct Pokemon sSavedMovingMon = {0};
@@ -606,7 +629,8 @@ static void AddBoxOptionsMenu(void);
 static u8 SetSelectionMenuTexts(void);
 static bool8 SetMenuTexts_Mon(void);
 static bool32 CanLevelCursorMonToCap(void);
-static bool32 TryLevelCursorMonToCap(void);
+static void Task_LevelUpInParty(u8);
+static void ReturnLevelUpMonToBox(void);
 static bool8 SetMenuTexts_Item(void);
 
 // Choose box menu
@@ -2094,6 +2118,10 @@ static void Task_InitPokeStorage(u8 taskId)
                 // Return from bag menu
                 GiveChosenBagItem();
                 break;
+            case SCREEN_CHANGE_LEVEL_UP_PARTY - 1:
+                // Return from the party menu's Level to Cap flow
+                ReturnLevelUpMonToBox();
+                break;
             }
         }
         LoadPokeStorageMenuGfx();
@@ -2670,16 +2698,8 @@ static void Task_OnSelectedMon(u8 taskId)
             SetPokeStorageTask(Task_ShowMarkMenu);
             break;
         case MENU_LEVEL_CAP:
-            // Immediate action rather than its own task - there's no animation
-            // or confirmation to sequence, unlike the party menu version which
-            // has a level-up stats window to show.
-            TryLevelCursorMonToCap();
-            PlaySE(SE_EXP);
-            // The box/party panel caches the displayed level, so without this
-            // the mon would keep showing its old one until the cursor moved.
-            RefreshDisplayMonData();
-            ClearBottomWindow();
-            SetPokeStorageTask(Task_PokeStorageMain);
+            PlaySE(SE_SELECT);
+            SetPokeStorageTask(Task_LevelUpInParty);
             break;
         case MENU_TAKE:
             PlaySE(SE_SELECT);
@@ -3584,6 +3604,91 @@ static void Task_NameBox(u8 taskId)
     }
 }
 
+// Level to Cap. Rather than levelling the Pokemon here, this hands it to the
+// party menu's own flow so it gets the real thing - stat windows, "learned
+// MOVE!", the replace-a-move prompt and the full evolution scene - instead of a
+// parallel implementation that would quietly drift out of step. A boxed mon is
+// parked in a free party slot on the way out and moved back on the way in.
+static void Task_LevelUpInParty(u8 taskId)
+{
+    switch (sStorage->state)
+    {
+    case 0:
+        // Captured now, before FreePokeStorageData wipes sStorage.
+        sLevelUpDisplaced = FALSE;
+
+        if (sInPartyMenu)
+        {
+            sLevelUpPartySlot = PARTY_SIZE; // already in the party, nothing to move
+        }
+        else
+        {
+            u32 partyCount = CalculatePlayerPartyCount();
+
+            sLevelUpBoxId = StorageGetCurrentBox();
+            sLevelUpBoxPos = sCursorPosition;
+
+            if (partyCount < PARTY_SIZE)
+            {
+                sLevelUpPartySlot = partyCount;
+            }
+            else
+            {
+                // Party is full: borrow the last slot and set its occupant
+                // aside. No free-slot requirement, so this always works.
+                sLevelUpPartySlot = PARTY_SIZE - 1;
+                sLevelUpDisplacedMon = gParties[B_TRAINER_PLAYER][sLevelUpPartySlot];
+                sLevelUpDisplaced = TRUE;
+            }
+        }
+
+        BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 16, RGB_BLACK);
+        sStorage->state = 2;
+        break;
+    case 2:
+        if (!UpdatePaletteFade())
+        {
+            sWhichToReshow = SCREEN_CHANGE_LEVEL_UP_PARTY - 1;
+            sStorage->screenChangeType = SCREEN_CHANGE_LEVEL_UP_PARTY;
+            SetPokeStorageTask(Task_ChangeScreen);
+        }
+        break;
+    }
+}
+
+// Undoes the parking done in Task_ChangeScreen. Called on re-entry to the PC.
+static void ReturnLevelUpMonToBox(void)
+{
+    struct Pokemon *mon;
+
+    if (sLevelUpPartySlot >= PARTY_SIZE)
+        return; // was already a party mon - nothing was moved
+
+    mon = &gParties[B_TRAINER_PLAYER][sLevelUpPartySlot];
+
+    // Write the levelled (and possibly evolved) result back over the original
+    // first. This order is deliberate: the box copy is only overwritten once
+    // there is a good result to overwrite it with.
+    SetBoxMonAt(sLevelUpBoxId, sLevelUpBoxPos, &mon->box);
+
+    if (sLevelUpDisplaced)
+    {
+        // Put the borrowed slot's original occupant back. No CompactPartySlots
+        // here - the slot is being refilled, not emptied, and compacting would
+        // reorder a party the player never asked to change.
+        gParties[B_TRAINER_PLAYER][sLevelUpPartySlot] = sLevelUpDisplacedMon;
+        sLevelUpDisplaced = FALSE;
+    }
+    else
+    {
+        ZeroMonData(mon);
+        CompactPartySlots();
+    }
+
+    CalculatePlayerPartyCount();
+    sLevelUpPartySlot = PARTY_SIZE;
+}
+
 static void Task_ShowMonSummary(u8 taskId)
 {
     switch (sStorage->state)
@@ -3804,6 +3909,21 @@ static void Task_ChangeScreen(u8 taskId)
     case SCREEN_CHANGE_ITEM_FROM_BAG:
         FreePokeStorageData();
         GoToBagMenu(ITEMMENULOCATION_PCBOX, 0, CB2_ReturnToPokeStorage);
+        break;
+    case SCREEN_CHANGE_LEVEL_UP_PARTY:
+        // Park a boxed Pokemon in the free party slot picked in
+        // Task_LevelUpInParty. BoxMonToMon computes its stats, which a
+        // BoxPokemon doesn't carry. The box slot is deliberately left intact -
+        // see the note on sLevelUpBoxId.
+        if (sLevelUpPartySlot < PARTY_SIZE)
+        {
+            BoxMonToMon(GetBoxedMonPtr(sLevelUpBoxId, sLevelUpBoxPos),
+                        &gParties[B_TRAINER_PLAYER][sLevelUpPartySlot]);
+            CalculatePlayerPartyCount();
+        }
+        FreePokeStorageData();
+        PartyMenu_StartAutoLevel((sLevelUpPartySlot < PARTY_SIZE) ? sLevelUpPartySlot : sCursorPosition,
+                                 CB2_ReturnToPokeStorage);
         break;
     }
 
@@ -7790,18 +7910,6 @@ static bool32 CanLevelCursorMonToCap(void)
     return GetLevelFromBoxMonExp(boxMon) < GetCurrentLevelCap();
 }
 
-// The cursor sits on party Pokemon as well as boxed ones, and the two need
-// different treatment: a party mon carries precomputed stats that a raw EXP
-// write would leave stale, so it goes through the full-struct path. A boxed mon
-// has no stats to update - they're derived on withdrawal - so EXP is enough.
-static bool32 TryLevelCursorMonToCap(void)
-{
-    if (sInPartyMenu)
-        return AutoLevelMonToCap(&gParties[B_TRAINER_PLAYER][sCursorPosition]);
-
-    return AutoLevelBoxMonToCap(GetCursorBoxMon());
-}
-
 static bool8 SetMenuTexts_Mon(void)
 {
     enum Species species = GetSpeciesAtCursorPosition();
@@ -8132,7 +8240,12 @@ static const u8 *const sMenuTexts[] =
     [MENU_SUMMARY]    = COMPOUND_STRING("SUMMARY"),
     [MENU_RELEASE]    = COMPOUND_STRING("RELEASE"),
     [MENU_MARK]       = COMPOUND_STRING("MARK"),
-    [MENU_LEVEL_CAP]  = COMPOUND_STRING("LEVEL"),
+    // Matches sText_LevelToCap in party_menu.c - same action, same wording.
+    // This is the longest string in the storage menu, so it sets menuWidth and
+    // widens the window to 14 tiles (ending at tile 287, inside the 512-tile
+    // charblock, and at column 15-28 on a 30-wide screen). Don't grow it much
+    // further without rechecking AddMenu's geometry.
+    [MENU_LEVEL_CAP]  = COMPOUND_STRING("LEVEL TO CAP"),
     [MENU_JUMP]       = COMPOUND_STRING("JUMP"),
     [MENU_WALLPAPER]  = COMPOUND_STRING("WALLPAPER"),
     [MENU_NAME]       = COMPOUND_STRING("NAME"),

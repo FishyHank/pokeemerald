@@ -8709,6 +8709,59 @@ static void CursorCb_Evolve(u8 taskId)
     FreePartyPointers();
 }
 
+// ---------------------------------------------------------------------------
+// Level to Cap driven from outside the party menu (the PC box)
+// ---------------------------------------------------------------------------
+// The PC needs a boxed Pokemon levelled by THIS code rather than a parallel
+// implementation, because everything that makes levelling correct lives here
+// and is hardcoded to the party: the replace-a-move prompt draws into the party
+// menu's own windows, and PartyMenuTryEvolution reads gPartyMenu.slotId and
+// hands a party slot index to BeginEvolutionScene.
+//
+// So the PC parks the boxed mon in a free party slot and calls this, which opens
+// the party menu already pointed at that slot and drops straight into the normal
+// flow. exitCallback is where the party menu returns when it's done - the PC
+// passes its own re-entry callback, which then moves the mon back.
+static EWRAM_DATA u8 sAutoLevelEntrySlot = 0;
+static EWRAM_DATA MainCallback sAutoLevelExitCallback = NULL;
+
+static void Task_StartAutoLevelForCaller(u8 taskId)
+{
+    struct Pokemon *mon;
+
+    if (gPaletteFade.active)
+        return;
+
+    gPartyMenu.slotId = sAutoLevelEntrySlot;
+    mon = &gParties[B_TRAINER_PLAYER][gPartyMenu.slotId];
+
+    // Mirrors CursorCb_AutoLevel from here on, minus its PartyMenuRemoveWindow
+    // call - there is no selection menu open when we enter this way.
+    if (GetMonData(mon, MON_DATA_LEVEL) >= GetCurrentLevelCap())
+    {
+        DisplayPartyMenuMessage(gText_PkmnAlreadyAtLevelCap, TRUE);
+        gTasks[taskId].func = Task_ClosePartyMenuAfterText;
+    }
+    else
+    {
+        DisplayPartyMenuMessage(gText_RaiseToLevelCapPrompt, TRUE);
+        gTasks[taskId].func = Task_AutoLevelYesNo;
+    }
+}
+
+static void CB2_PartyMenuForAutoLevel(void)
+{
+    InitPartyMenu(PARTY_MENU_TYPE_FIELD, PARTY_LAYOUT_SINGLE, PARTY_ACTION_CHOOSE_MON,
+                  FALSE, PARTY_MSG_NONE, Task_StartAutoLevelForCaller, sAutoLevelExitCallback);
+}
+
+void PartyMenu_StartAutoLevel(u8 slot, MainCallback exitCallback)
+{
+    sAutoLevelEntrySlot = slot;
+    sAutoLevelExitCallback = exitCallback;
+    SetMainCallback2(CB2_PartyMenuForAutoLevel);
+}
+
 static void CursorCb_AutoLevel(u8 taskId)
 {
     struct Pokemon *mon = &gParties[B_TRAINER_PLAYER][gPartyMenu.slotId];

@@ -106,6 +106,11 @@ enum Move ItemIdToBattleMoveId(enum Item item);
 bool8 MonKnowsMove(struct Pokemon *mon, enum Move move);
 bool8 BoxMonKnowsMove(struct BoxPokemon *boxMon, enum Move move);
 void ItemUseCB_TMHM(u8 taskId, TaskFunc task);
+// Opens the party menu on `slot` and runs the Level to Cap flow on it, returning
+// to `exitCallback`. Lets the PC level a boxed Pokemon with the real party code
+// - replace-a-move prompt and evolution scene included - by parking it in a free
+// party slot first. See the comment on PartyMenu_StartAutoLevel.
+void PartyMenu_StartAutoLevel(u8 slot, MainCallback exitCallback);
 void ItemUseCB_RareCandy(u8 taskId, TaskFunc task);
 void ItemUseCB_DynamaxCandy(u8 taskId, TaskFunc task);
 void ItemUseCB_SacredAsh(u8 taskId, TaskFunc task);
