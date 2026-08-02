@@ -879,16 +879,27 @@ static bool8 StartMenuDigCallback(void)
 
 static bool8 StartMenuFlashCallback(void)
 {
-    gFieldEffectArguments[0] = GetFieldMoveUserSlot();
-
     RemoveExtraStartMenuWindows();
     HideStartMenu(); // closes the menu, unfreezes objects and unlocks controls
-    // Same reasoning as Dig: the normal route (FieldCallback_Flash) reads its
-    // user from the party-menu cursor, which doesn't exist here. Run what
-    // FldEff_UseFlash would have done, with the user set above.
+
     PlaySE(SE_M_REFLECT);
     FlagSet(FLAG_SYS_USE_FLASH);
-    ScriptContext_SetupScript(EventScript_UseFlash);
+
+    // Deliberately NOT EventScript_UseFlash / animateflash. The hardware window
+    // params are already armed by the time this row can be picked - the row
+    // only appears in an unlit cave, and such a map loads with a nonzero flash
+    // level, so map load ran InitCurrentFlashLevelScanlineEffect already. The
+    // problem is the control lock: AnimateFlash calls LockPlayerFieldControls
+    // and relies on the script's releaseall to undo it, but HideStartMenu has
+    // already unlocked above, so that pair runs inverted. The party-menu route
+    // never hits this because it fades in through
+    // FieldCallback_PrepareFadeInFromMenu with controls still locked.
+    //
+    // So do what map load does instead: set the level from the flag we just
+    // set, then re-arm the effect. No animation, but it lights up correctly and
+    // immediately, with no lock state to get wrong.
+    SetDefaultFlashLevel();
+    InitCurrentFlashLevelScanlineEffect();
     return TRUE;
 }
 

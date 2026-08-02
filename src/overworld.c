@@ -2211,7 +2211,11 @@ static void VBlankCB_Field(void)
     TransferTilesetAnimsBuffer();
 }
 
-static void InitCurrentFlashLevelScanlineEffect(void)
+// Non-static so the pause menu's FLASH row can re-arm the effect after changing
+// the flash level. Writing new scanline buffers (what AnimateFlash does) is not
+// enough on its own - these are the hardware window params that make them
+// visible, and outside of this function they are only ever set during map load.
+void InitCurrentFlashLevelScanlineEffect(void)
 {
     u8 flashLevel;
 

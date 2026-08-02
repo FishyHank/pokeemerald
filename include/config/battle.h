@@ -419,7 +419,18 @@
 #define SHOW_EFFECTIVENESS_ALWAYS   1           // Always show effectiveness when selecting moves.
 #define SHOW_EFFECTIVENESS_CAUGHT   2           // Only show effectiveness if you've caught a species of the mon.
 #define SHOW_EFFECTIVENESS_SEEN     3           // Only show effectiveness if you've seen a species of the mon.
-#define B_SHOW_EFFECTIVENESS        SHOW_EFFECTIVENESS_SEEN // If not SHOW_EFFECTIVENESS_NEVER, the PP string is replaced by a type effectiveness indicator based off the moves and the opposing side.
+// Was SHOW_EFFECTIVENESS_SEEN, which is the mainline Gen6+ behaviour: the icon
+// only appears for species already registered in the Pokedex. Changed to ALWAYS
+// deliberately. Randomized trainers and wild encounters mean you meet species
+// for the first time constantly, so the Pokedex gate hid the indicator on
+// exactly the fights where a wrong guess is a permanent Nuzlocke loss - and the
+// type chart is fixed knowledge the gate wasn't teaching, just withholding.
+// Showing it every time is what actually builds the matchup instincts needed
+// later, since Pokemon Showdown gives no effectiveness hints at all.
+//
+// Status moves still show no icon; that's handled separately in
+// MoveSelectionDisplayMoveEffectiveness and is correct - they have no matchup.
+#define B_SHOW_EFFECTIVENESS        SHOW_EFFECTIVENESS_ALWAYS // If not SHOW_EFFECTIVENESS_NEVER, the PP string is replaced by a type effectiveness indicator based off the moves and the opposing side.
 
 // Pokémon battle sprite settings
 #define B_ENEMY_MON_SHADOW_STYLE        GEN_LATEST // In Gen4+, all enemy Pokemon will have a shadow drawn beneath them.

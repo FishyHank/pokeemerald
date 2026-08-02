@@ -1148,23 +1148,45 @@ static bool32 IsTeraShard(enum Item item)
         || item == ITEM_STELLAR_TERA_SHARD;
 }
 
-// CAREFUL: the Mega Stones and the Z-Crystals are NOT one contiguous block.
-// The 18 Gems (ITEM_NORMAL_GEM..ITEM_FAIRY_GEM) sit between them in the enum,
-// at 339-356, and Gems are perfectly functional single-use damage boosters.
-// Treating 292-391 as one range would silently delete them from the loot pool.
+// Matched by HOLD EFFECT, not by item id range. Their ids are nowhere near
+// contiguous: this expansion ships 92 Mega Stones and 35 Z-Crystals, and while
+// the official ones sit together (292-338 and 357-391, with the 18 functional
+// Gems wedged between them), the fan-added ones - Chesnaughtite at 843,
+// Baxcaliburite, Glimmoranite and friends - live up in the 800s.
+//
+// An earlier id-range version caught 47 of the 92 and let a Chesnaughtite into a
+// real playthrough. The hold effect IS the definition of the thing, so it can't
+// drift out of step with the item table the way a hand-written range does.
+// Same lesson as the placeholder TMs: never bound a category by id here.
 static bool32 IsMegaStone(enum Item item)
 {
-    return item >= ITEM_VENUSAURITE && item <= ITEM_DIANCITE;
+    return gItemsInfo[item].holdEffect == HOLD_EFFECT_MEGA_STONE;
 }
 
 static bool32 IsZCrystal(enum Item item)
 {
-    return item >= ITEM_NORMALIUM_Z && item <= ITEM_ULTRANECROZIUM_Z;
+    return gItemsInfo[item].holdEffect == HOLD_EFFECT_Z_CRYSTAL;
 }
 
+// Catch-all for unimplemented items, whatever they are. Every placeholder in
+// this expansion shares ONE description string - the "?????" that ITEM_NONE
+// uses - so comparing the pointer identifies all 55 of them at once, including
+// the TM51..TM100 duds the id range above them handles separately, and it keeps
+// working for any placeholder the expansion adds later.
+static bool32 IsPlaceholderItem(enum Item item)
+{
+    return gItemsInfo[item].description == gItemsInfo[ITEM_NONE].description;
+}
+
+// NOT matched by name: ITEM_MAX_HONEY reads like a Dynamax item and is not one
+// - it's a Max Revive in all but name (gItemEffect_MaxRevive) and stays in the
+// pool. The Wishing Piece is here because Pokemon Dens don't exist in Emerald,
+// so it has nowhere to be thrown; its own entry marks the use function "Todo".
 static bool32 IsDynamaxItem(enum Item item)
 {
-    return item == ITEM_DYNAMAX_CANDY || item == ITEM_MAX_MUSHROOMS;
+    return item == ITEM_DYNAMAX_CANDY
+        || item == ITEM_MAX_MUSHROOMS
+        || item == ITEM_WISHING_PIECE;
 }
 
 static bool32 IsAbilityChangingItem(enum Item item)
@@ -1211,6 +1233,12 @@ static bool32 IsItemValidRandomizerPick(enum Item item, bool32 allowTMs)
 
     // Never valid for anything, TMs allowed or not.
     if (IsPlaceholderTM(item))
+        return FALSE;
+
+    // Belt and braces over IsPlaceholderTM: catches every other unimplemented
+    // item in the table by its "?????" description, so a dud can't reach the
+    // player just because nobody thought to add its id range here.
+    if (IsPlaceholderItem(item))
         return FALSE;
 
 #if !B_ENABLE_TERASTAL

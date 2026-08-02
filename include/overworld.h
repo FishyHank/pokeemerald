@@ -125,6 +125,9 @@ void ResetInitialPlayerAvatarState(void);
 void StoreInitialPlayerAvatarState(void);
 bool32 Overworld_IsBikingAllowed(void);
 void SetDefaultFlashLevel(void);
+// Arms the hardware window params for the current flash level. Normally only
+// map load calls this; the pause menu's FLASH row needs it too.
+void InitCurrentFlashLevelScanlineEffect(void);
 void SetFlashLevel(s32 flashLevel);
 u8 GetFlashLevel(void);
 void SetCurrentMapLayout(u16 mapLayoutId);
