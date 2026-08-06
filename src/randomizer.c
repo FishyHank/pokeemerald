@@ -13,8 +13,9 @@
 #include "constants/vars.h"
 #include "event_data.h"
 
-// Defined further down, next to the cache it clears.
+// Defined further down, next to the caches they clear.
 static void ClearLearnsetCache(void);
+static void ClearAbilityCache(void);
 
 void Randomizer_GenerateSeed(void)
 {
@@ -28,6 +29,7 @@ void Randomizer_GenerateSeed(void)
     // Quickstart to roll a fresh seed without power-cycling the emulator
     // reuses the same EWRAM cache across "new games".
     ClearLearnsetCache();
+    ClearAbilityCache();
 }
 
 // Cheap integer hash (murmur3-style finalizer). Same seed + slotId always
@@ -475,11 +477,45 @@ enum Move Randomizer_GetTMMove(u32 tmIndex)
 }
 
 // ---------------------------------------------------------------------------
+// Evolution family base
+//
+// Walks a species back to the root of its evolution line. Shared by the ability
+// and learnset systems: both key their rolls on the family base so that
+// evolving never silently rerolls what the Pokemon had.
+// ---------------------------------------------------------------------------
+static enum Species GetEvolutionFamilyBase(enum Species species)
+{
+    u32 guard;
+
+    // GetSpeciesPreEvolution is a brute-force scan of the whole species table,
+    // so this must only ever run on a cache miss - never on a cache-hit path
+    // (MonTryLearningNewMoveAtLevel re-fetches the learnset for every level,
+    // and GetAbilityBySpecies is called constantly during battle).
+    // The guard bounds a malformed or cyclic evolution table rather than
+    // looping forever; real chains are at most 3 stages.
+    for (guard = 0; guard < 5; guard++)
+    {
+        enum Species prev = GetSpeciesPreEvolution(species);
+
+        if (prev == SPECIES_NONE)
+            break;
+
+        species = prev;
+    }
+
+    return species;
+}
+
+// ---------------------------------------------------------------------------
 // Randomized abilities
 //
-// Rolled per (species, ability slot), so within one save every Gardevoir shares
-// the same ability for a given slot instead of each individual rolling its own.
-// Deliberately unfiltered beyond validity: a Pokemon landing a useless ability
+// Rolled per EVOLUTION FAMILY, so a Squirtle keeps the same ability as a
+// Wartortle and a Blastoise. Rolling per species instead meant every evolution
+// silently swapped the Pokemon's ability out from under the player - a trained
+// mon could lose the exact ability it was being built around at the moment it
+// evolved, which is punishing in a nuzlocke where that mon is irreplaceable.
+//
+// Deliberately unfiltered beyond validity: a family landing a useless ability
 // is part of the intended randomness.
 // ---------------------------------------------------------------------------
 
@@ -533,24 +569,59 @@ static bool8 IsAbilityValidRandomizerPick(u32 ability)
     return gAbilitiesInfo[ability].name[0] != EOS && gAbilitiesInfo[ability].name[0] != 0;
 }
 
+// GetAbilityBySpecies is the chokepoint for every ability lookup in the game and
+// runs many times per battle turn, while resolving a family base is a full scan
+// of the species table. This direct-mapped cache keeps that scan off the hot
+// path: it's keyed on the ACTUAL species so a hit costs one comparison, with
+// family members holding separate entries of identical content.
+//
+// A collision just recomputes in place. Generation is deterministic for a given
+// seed, so that costs time and nothing else. It is NOT stable across seeds
+// though, so like the learnset cache this has to be dropped whenever the seed
+// is regenerated - a cache hit never re-checks the seed, and rolling a fresh
+// seed via Quickstart without power-cycling reuses this same EWRAM.
+#define RANDOMIZER_ABILITY_CACHE_SIZE 64
+
+static EWRAM_DATA u16 sAbilityCacheSpecies[RANDOMIZER_ABILITY_CACHE_SIZE] = {0};
+static EWRAM_DATA u16 sAbilityCacheResult[RANDOMIZER_ABILITY_CACHE_SIZE] = {0};
+static EWRAM_DATA bool8 sAbilityCacheOccupied[RANDOMIZER_ABILITY_CACHE_SIZE] = {0};
+
+static void ClearAbilityCache(void)
+{
+    u32 i;
+
+    for (i = 0; i < RANDOMIZER_ABILITY_CACHE_SIZE; i++)
+        sAbilityCacheOccupied[i] = FALSE;
+}
+
 enum Ability Randomizer_GetAbilityForSpecies(enum Species species, u32 UNUSED abilityNum)
 {
-    u32 slotId, attempt, i, start;
+    u32 slotId, attempt, i, start, bucket;
+    enum Ability result;
 
     species = SanitizeSpeciesId(species);
 
-    // Keyed on species ALONE - abilityNum is deliberately ignored so every
-    // member of a species has one single ability, rather than one per slot.
-    // Without this, two individuals of the same species whose abilityNum
-    // differs (it's derived from personality) would get different abilities.
-    slotId = RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_ABILITY, species);
+    bucket = species % RANDOMIZER_ABILITY_CACHE_SIZE;
+    if (sAbilityCacheOccupied[bucket] && sAbilityCacheSpecies[bucket] == species)
+        return sAbilityCacheResult[bucket];
+
+    // Keyed on the EVOLUTION FAMILY, and abilityNum is deliberately ignored.
+    // The family keying is what makes an ability survive evolution; ignoring
+    // abilityNum is what stops two individuals of one species from differing,
+    // since abilityNum is derived from personality.
+    slotId = RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_ABILITY, GetEvolutionFamilyBase(species));
+
+    result = ABILITY_NONE; // unreachable unless no ability is defined at all
 
     for (attempt = 0; attempt < RANDOMIZER_MAX_REROLLS; attempt++)
     {
         u32 ability = 1 + (Randomizer_GetSlotRollAttempt(slotId, attempt) % (ABILITIES_COUNT - 1));
 
         if (IsAbilityValidRandomizerPick(ability))
-            return ability;
+        {
+            result = ability;
+            goto done;
+        }
     }
 
     // Never hang, and never fall back to an unvalidated roll: scan forward from
@@ -562,10 +633,18 @@ enum Ability Randomizer_GetAbilityForSpecies(enum Species species, u32 UNUSED ab
         u32 ability = 1 + (((start - 1) + i) % (ABILITIES_COUNT - 1));
 
         if (IsAbilityValidRandomizerPick(ability))
-            return ability;
+        {
+            result = ability;
+            goto done;
+        }
     }
 
-    return ABILITY_NONE; // unreachable unless no ability is defined at all
+done:
+    sAbilityCacheSpecies[bucket] = species;
+    sAbilityCacheResult[bucket] = result;
+    sAbilityCacheOccupied[bucket] = TRUE;
+
+    return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -897,28 +976,6 @@ static void GenerateLevelUpLearnset(enum Species species, struct LevelUpMove *le
 // the base form's typing, so every Eeveelution inherits Eevee's Normal-typed
 // STAB and a Vaporeon may end up with no Water move at all. That unpredictable
 // coverage is part of the intended nuzlocke challenge.
-static enum Species GetLearnsetFamilyBase(enum Species species)
-{
-    u32 guard;
-
-    // GetSpeciesPreEvolution is a brute-force scan of the whole species table,
-    // so this must only ever run on a cache miss - never on the cache-hit path
-    // (MonTryLearningNewMoveAtLevel re-fetches the learnset for every level).
-    // The guard bounds a malformed or cyclic evolution table rather than
-    // looping forever; real chains are at most 3 stages.
-    for (guard = 0; guard < 5; guard++)
-    {
-        enum Species prev = GetSpeciesPreEvolution(species);
-
-        if (prev == SPECIES_NONE)
-            break;
-
-        species = prev;
-    }
-
-    return species;
-}
-
 const struct LevelUpMove *Randomizer_GetLevelUpLearnset(enum Species species)
 {
     u32 bucket;
@@ -938,7 +995,7 @@ const struct LevelUpMove *Randomizer_GetLevelUpLearnset(enum Species species)
     // Bucket collision just regenerates in place over whatever species was
     // here before. Fully deterministic (same seed + species always produces
     // identical content), so this costs a recompute and nothing else.
-    GenerateLevelUpLearnset(GetLearnsetFamilyBase(species), sLearnsetCache[bucket]);
+    GenerateLevelUpLearnset(GetEvolutionFamilyBase(species), sLearnsetCache[bucket]);
     sLearnsetCacheSpecies[bucket] = species;
     sLearnsetCacheOccupied[bucket] = TRUE;
 

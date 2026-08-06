@@ -347,15 +347,24 @@
 #define B_INCAPACITATED_CATCH_BONUS     GEN_LATEST // In Gen5+, the catch rate bonus for a mon with sleep or freeze is 2.5x. In Gen4 and below its only a 2x bonus.
 #define B_LOW_LEVEL_CATCH_BONUS         GEN_LATEST // In Gen8, a bonus is added to the catch rate if catching a mon lower than level 20. In Gen9, the bonus is only applied to mons lower than level 13.
 #define B_MISSING_BADGE_CATCH_MALUS     GEN_LATEST // In Gen9, a penalty is added to the catch rate if trying to catch a mon 5 levels above the current obedience level, based on the number of gym badges obtained.
-// Trainer levels are raised toward the player's current level cap. Vanilla
-// levels assume you arrive underlevelled from natural EXP; with a hard level cap
-// and Level-to-Cap the player is always exactly AT the cap, so a Route 102
-// trainer at level 6 against a level 15 party isn't a fight. Levels are only
-// ever raised, never lowered, so anything already tuned above the cap (the
-// Elite Four sit at 49-55 against a 46 cap) is left exactly as designed.
+// Trainer levels are raised toward the level cap of the AREA they belong to.
+// Vanilla levels assume you arrive underlevelled from natural EXP; with a hard
+// level cap and Level-to-Cap the player is always exactly AT the cap, so a
+// Route 102 trainer at level 6 against a level 15 party isn't a fight.
+//
+// The area's cap is inferred from the trainer's own vanilla levels rather than
+// from the player's current cap, so it's FIXED: a Route 102 Youngster is the
+// same level at eight badges as at one, and backtracking doesn't drag the whole
+// early game up to your level. See GetAreaLevelCapForVanillaLevel in caps.c.
+//
+// Levels are only ever raised, never lowered. Two groups are skipped entirely
+// and left exactly as designed: the Elite Four gauntlet, which is already
+// authored as a ramp climbing to the cap (Sidney 46-49 through Wallace 55-58),
+// and anything above the last tier - post-game Steven and the late gym
+// rematches, which belong to the post-game cap instead.
 #define B_TRAINER_LEVEL_CAP_SCALING     TRUE
-#define B_TRAINER_LEVEL_CAP_OFFSET      3          // ordinary trainers land this far below the cap
-#define B_LEADER_LEVEL_CAP_OFFSET       0          // Gym Leaders / Elite Four / Champion land exactly ON it
+#define B_TRAINER_LEVEL_CAP_OFFSET      3          // ordinary trainers land this far below their area's cap
+#define B_LEADER_LEVEL_CAP_OFFSET       0          // Gym Leaders land exactly ON it
 #define B_LEGENDARY_MIN_CATCH_RATE      45         // Floor applied to the catch rate of legendary/mythical/Ultra Beast species (0 disables). Vanilla puts 123 of them at 3, the minimum on the scale, which is ~10 Ultra Balls even at 1 HP and asleep - brutal in a Nuzlocke where a legendary is a one-shot encounter. 45 keeps them hard to catch fresh (~21% per Ultra Ball at full HP) but reliable once properly weakened and statused.
 #define B_CRITICAL_CAPTURE              TRUE       // If set to TRUE, Critical Capture will be enabled.
 #define B_CRITICAL_CAPTURE_LOCAL_DEX    TRUE       // If set to FALSE, Critical Capture % is based off of the National Pokedex estimated by enabled generations.

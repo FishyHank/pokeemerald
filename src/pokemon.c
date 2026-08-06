@@ -3126,7 +3126,7 @@ enum Ability GetAbilityBySpecies(enum Species species, u8 abilityNum)
     int i;
 
 #if RANDOMIZER_ABILITIES_ENABLED
-    // Randomized per species + slot. This is the single chokepoint every
+    // Randomized per evolution family. This is the single chokepoint every
     // ability lookup funnels through (GetMonAbility, battle setup, the summary
     // screen, CopyMon...), so hooking here covers all of them at once.
     //

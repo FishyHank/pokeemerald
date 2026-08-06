@@ -1863,15 +1863,34 @@ void CustomTrainerPartyAssignMoves(struct Pokemon *mon, const struct TrainerMon 
     }
 }
 
-// Gym Leaders, the Elite Four and the Champion are the difficulty walls, so they
-// sit ON the cap while everyone else sits below it. Their vanilla levels were
-// already close - the first six leaders match the cap thresholds exactly - so
-// this mostly just closes the small gap on the last two gyms.
+// Gym Leaders are the difficulty walls of their area, so they sit ON its cap
+// while everyone else sits below it. Their aces are what the cap thresholds were
+// derived from, so this is very nearly a no-op - it just closes the small gap on
+// Juan.
 static bool32 IsCapAlignedTrainerClass(u32 trainerClass)
 {
     switch (trainerClass)
     {
     case TRAINER_CLASS_LEADER:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
+// The Elite Four gauntlet is exempt from area scaling entirely, because it is
+// already authored as exactly what the scaling would try to produce: a ramp that
+// climbs across the five fights and terminates on the cap.
+//
+//     Sidney 46-49, Phoebe 48-51, Glacia 50-53, Drake 52-55, Wallace 55-58
+//
+// against a champion-tier cap of 58. Scaling them would resolve every member to
+// the same 58 ace and flatten that ramp into five identical-strength fights,
+// which is strictly worse than what Game Freak shipped.
+static bool32 IsGauntletTrainerClass(u32 trainerClass)
+{
+    switch (trainerClass)
+    {
     case TRAINER_CLASS_ELITE_FOUR:
     case TRAINER_CLASS_CHAMPION:
         return TRUE;
@@ -1905,6 +1924,53 @@ u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer 
         u32 monIndices[monsCount];
         DoTrainerPartyPool(trainer, monIndices, monsCount, battleTypeFlags);
 
+#if B_TRAINER_LEVEL_CAP_SCALING
+        // Trainers are pinned to the level cap of the AREA they belong to, which
+        // is inferred from their vanilla levels - see
+        // GetAreaLevelCapForVanillaLevel in caps.c for why that inference works.
+        //
+        // Deliberately independent of GetCurrentLevelCap(): a Route 102 Youngster
+        // is the same level at eight badges as at one. Scaling against the live
+        // cap instead would leave every trainer in the game sitting a fixed few
+        // levels under the player forever, no matter how far they'd backtracked.
+        u32 levelShift = 0;
+        {
+            u32 aceLevel = 0, areaCap, j;
+
+            // Taken over the FULL party, not just the half-team subset picked
+            // above, so the tier is a property of the trainer rather than of
+            // which mons happened to be selected for this battle.
+            for (j = 0; j < trainer->partySize; j++)
+            {
+                if (trainer->party[j].lvl > aceLevel)
+                    aceLevel = trainer->party[j].lvl;
+            }
+
+            // 0 means no area scaling applies. Either the trainer is part of the
+            // Elite Four gauntlet (already tuned as a ramp - see
+            // IsGauntletTrainerClass), or they sit above the last tier entirely:
+            // the post-game Steven fight and the late gym rematches, which
+            // belong to the post-game cap rather than any badge-gated area.
+            // Both keep their authored levels untouched.
+            areaCap = IsGauntletTrainerClass(trainer->trainerClass)
+                      ? 0 : GetAreaLevelCapForVanillaLevel(aceLevel);
+
+            if (areaCap != 0)
+            {
+                u32 offset = IsCapAlignedTrainerClass(trainer->trainerClass)
+                             ? B_LEADER_LEVEL_CAP_OFFSET : B_TRAINER_LEVEL_CAP_OFFSET;
+                u32 target = (areaCap > offset) ? (areaCap - offset) : 1;
+
+                // One shift for the whole party, so internal level spreads
+                // survive - resolving each mon against the tier separately would
+                // flatten Roxanne's 12/12/15 into a uniform 15/15/15.
+                // Raise only, never lower.
+                if (target > aceLevel)
+                    levelShift = target - aceLevel;
+            }
+        }
+#endif
+
         for (s32 i = 0; i < monsCount; i++)
         {
             u32 monIndex = monIndices[i];
@@ -1920,16 +1986,10 @@ u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer 
             // tiers species by level, so scaling first means a raised trainer also
             // gets Pokemon appropriate to the new level rather than early-game
             // filler wearing a bigger number.
+            if (levelShift != 0)
             {
-                u32 cap = GetCurrentLevelCap();
-                u32 offset = IsCapAlignedTrainerClass(trainer->trainerClass)
-                             ? B_LEADER_LEVEL_CAP_OFFSET : B_TRAINER_LEVEL_CAP_OFFSET;
-                u32 target = (cap > offset) ? (cap - offset) : 1;
-
-                // Raise only. Lowering would nerf the Elite Four, who are tuned
-                // above the cap on purpose.
-                if (monCopy.lvl < target)
-                    monCopy.lvl = target;
+                u32 newLevel = monCopy.lvl + levelShift;
+                monCopy.lvl = (newLevel > MAX_LEVEL) ? MAX_LEVEL : newLevel;
             }
 #endif
 

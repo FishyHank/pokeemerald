@@ -63,6 +63,39 @@ u32 GetLevelCapThresholdLevel(u32 index)
     return sLevelCapFlagMap[index][1];
 }
 
+// Maps a trainer's ORIGINAL (vanilla) level onto the level-cap tier of the area
+// they belong to, so trainer scaling can be a fixed property of the place
+// instead of tracking the player's live cap forever.
+//
+// This needs no map table because the vanilla levels already encode the area:
+// Game Freak tuned every route to sit between the two gym leaders bracketing
+// it, and sLevelCapFlagMap above was itself derived from those leaders' aces
+// (Roxanne 15, Brawly 19, Wattson 24, Flannery 29, Norman 31...). So "the
+// lowest threshold this level still fits under" IS the area's cap.
+//
+// The final tier (FLAG_IS_CHAMPION, 58) is a real area too - it covers Victory
+// Road and the Elite Four, whose aces sit at 46-57.
+//
+// Returns 0 only for trainers tuned ABOVE that last tier: the post-game Meteor
+// Falls Steven fight (78) and the late gym rematches (60-66). Those belong to
+// the post-game cap, not to any badge-gated area, so they keep their authored
+// levels. 0 means "not an area trainer, leave alone".
+u32 GetAreaLevelCapForVanillaLevel(u32 level)
+{
+    u32 i, count = GetLevelCapThresholdCount();
+
+    if (count == 0)
+        return 0;
+
+    for (i = 0; i < count; i++)
+    {
+        if (level <= GetLevelCapThresholdLevel(i))
+            return GetLevelCapThresholdLevel(i);
+    }
+
+    return 0;
+}
+
 u32 GetSoftLevelCapExpValue(u32 level, u32 expValue)
 {
     static const u32 sExpScalingDown[5] = { 4, 8, 16, 32, 64 };

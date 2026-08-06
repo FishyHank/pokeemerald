@@ -71,13 +71,14 @@ u16 Randomizer_GetWildSpeciesForLevel(u32 slotId, u8 level);
 // one seed, every member of a family gets the identical learnset (keyed on the
 // family's base form), so a wild-caught Pikachu and one raised from a Pichu
 // learn exactly the same moves. STAB is therefore chosen for the base form's
-// typing - see GetLearnsetFamilyBase in randomizer.c for why that's intended.
+// typing - see GetEvolutionFamilyBase in randomizer.c for why that's intended.
 const struct LevelUpMove *Randomizer_GetLevelUpLearnset(enum Species species);
 
-// Returns this species' randomized ability. One ability per species for the
-// whole save: every Gardevoir has the same one, regardless of ability slot
-// (abilityNum is accepted for call-site compatibility but deliberately
-// ignored). Guaranteed to be a real, defined ability, never ABILITY_NONE, and
+// Returns this species' randomized ability. One ability per EVOLUTION FAMILY
+// for the whole save: every Ralts, Kirlia and Gardevoir shares the same one,
+// regardless of ability slot (abilityNum is accepted for call-site
+// compatibility but deliberately ignored). Evolving therefore never changes a
+// Pokemon's ability. Guaranteed to be a real, defined ability, never ABILITY_NONE, and
 // never a form-changing ability (those are excluded for stability - see
 // IsFormChangingAbility in randomizer.c).
 enum Ability Randomizer_GetAbilityForSpecies(enum Species species, u32 abilityNum);

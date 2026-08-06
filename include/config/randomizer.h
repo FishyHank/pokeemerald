@@ -90,7 +90,7 @@
 
 // Ability Capsule and Ability Patch both work by changing a mon's abilityNum.
 // Randomizer_GetAbilityForSpecies deliberately ignores abilityNum and keys on
-// species alone, and it is the only authority on what ability a mon has, so
+// the evolution family alone, and it is the only authority on what ability a mon has, so
 // both items report success and then change nothing at all.
 #define RANDOMIZER_EXCLUDE_ABILITY_CHANGERS  TRUE
 

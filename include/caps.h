@@ -27,4 +27,9 @@ u32 GetCurrentEVCap(void);
 u32 GetLevelCapThresholdCount(void);
 u32 GetLevelCapThresholdLevel(u32 index);
 
+// The level cap of the AREA a trainer belongs to, inferred from their vanilla
+// level. Returns 0 for trainers tuned above the last badge tier (Elite Four,
+// Champion, post-game), which should not be area-scaled at all.
+u32 GetAreaLevelCapForVanillaLevel(u32 level);
+
 #endif /* GUARD_CAPS_H */
