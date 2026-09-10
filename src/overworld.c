@@ -2215,7 +2215,13 @@ static void VBlankCB_Field(void)
 // the flash level. Writing new scanline buffers (what AnimateFlash does) is not
 // enough on its own - these are the hardware window params that make them
 // visible, and outside of this function they are only ever set during map load.
-void InitCurrentFlashLevelScanlineEffect(void)
+// Deliberately static, as upstream has it. It was briefly made public so the
+// pause menu's FLASH row could re-arm the flash effect in place - that black
+// screened the cave, because this only works as part of the map-load sequence
+// that runs ScanlineEffect_Clear() first (see ResumeMap). Anything outside a
+// map load that wants the flash effect should go through CB2_ReturnToField
+// instead; see SetUpFieldMove_FlashFromStartMenu in src/fldeff_flash.c.
+static void InitCurrentFlashLevelScanlineEffect(void)
 {
     u8 flashLevel;
 

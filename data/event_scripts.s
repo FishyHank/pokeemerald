@@ -1257,6 +1257,16 @@ EventScript_RegionMap::
 	releaseall
 	end
 
+@ Nuzlocke Encounter Log key item. No msgbox before the fade - this is a
+@ reference the player opens constantly mid-run, so a message every time would
+@ be friction. The lockall/releaseall pair is load-bearing, not decoration.
+EventScript_EncounterLog::
+	lockall
+	fadescreen FADE_TO_BLACK
+	special FieldShowEncounterLog
+	releaseall
+	end
+
 Common_EventScript_PlayBrineysBoatMusic::
 	setflag FLAG_DONT_TRANSITION_MUSIC
 	playbgm MUS_SAILING, FALSE

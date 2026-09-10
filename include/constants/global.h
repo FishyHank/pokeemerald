@@ -110,11 +110,31 @@ enum Language
 #define ROAMER_COUNT 1 // Number of maximum concurrent active roamers
 
 // Bag constants
-#define BAG_ITEMS_COUNT 30
-#define BAG_KEYITEMS_COUNT 30
-#define BAG_POKEBALLS_COUNT 16
-#define BAG_TMHM_COUNT 64
+//
+// Enlarged from vanilla (30/30/16/64/46). Every slot is 4 bytes of SaveBlock1,
+// which has a hard ceiling of SECTOR_DATA_SIZE * 4 - see the SaveBlock1FreeSpace
+// assert in src/save.c. These five numbers are the only thing to edit: the bag
+// UI sizes its buffers off MAX_POCKET_ITEMS in src/item_menu.c, which takes the
+// max of the five itself, and the Wally tutorial bag copies by sizeof.
+//
+// CAUTION: changing any of these shifts every field after `bag` (offset 0x560)
+// in SaveBlock1, and there is no save version field to detect the mismatch. Old
+// saves load as garbage rather than failing cleanly, so these may only move on a
+// release that already requires a new save.
+//
+// TM/HM holds 8 HMs alongside the TMs, so vanilla's 64 could not fit a full
+// collection of this hack's 58 TMs (58 + 8 = 66). 70 is that plus slack.
+#define BAG_ITEMS_COUNT 60
+#define BAG_KEYITEMS_COUNT 40
+#define BAG_POKEBALLS_COUNT 24
+#define BAG_TMHM_COUNT 70
 #define BAG_BERRIES_COUNT 46
+
+// Rows in the Nuzlocke encounter checklist (gEncounterZones). Lives here rather
+// than in include/encounter_log.h because SaveBlock1 sizes a field with it and
+// global.h cannot include that header. A STATIC_ASSERT in src/encounter_log.c
+// fails the build if this drifts from the table.
+#define ENCOUNTER_ZONE_COUNT 65
 
 // Number of facilities for Ranking Hall.
 // 7 facilities for single mode + tower double mode + tower multi mode.

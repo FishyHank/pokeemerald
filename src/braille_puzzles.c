@@ -14,6 +14,7 @@
 #include "fldeff.h"
 #include "field_move.h"
 #include "constants/field_move.h"
+#include "config/randomizer.h"
 
 EWRAM_DATA static bool8 sIsRegisteelPuzzle = 0;
 
@@ -93,6 +94,23 @@ void DoBrailleDigEffect(void)
 
 bool8 CheckRelicanthWailord(void)
 {
+#if RANDOMIZER_WILD_ENCOUNTERS_ENABLED
+    // Dead gate once wild species are randomized. Neither Wailord nor Relicanth
+    // has a fixed home any more - each only exists if some slot happened to roll
+    // it, which is roughly a 78% chance per species and ~61% for both, and even
+    // then a Nuzlocke run would have to spend its one encounter in each of those
+    // specific areas and keep both alive to the endgame.
+    //
+    // This flag opens ALL THREE Regi chambers (Route105 / Route111 / Route120
+    // each seal their entrance while FLAG_REGI_DOORS_OPENED is unset), so
+    // leaving it in costs three of the four legendary encounters reachable
+    // before the champion.
+    //
+    // Nothing else about the puzzle is waived: Dive to the underwater entrance,
+    // the Braille wall and Dig are all still required to stand here, and each
+    // Regi keeps its own chamber puzzle.
+    return TRUE;
+#else
     // Emerald change: why did they flip it?
     // First comes Wailord
     if (GetMonData(&gParties[B_TRAINER_PLAYER][0], MON_DATA_SPECIES_OR_EGG, 0) == SPECIES_WAILORD)
@@ -103,6 +121,7 @@ bool8 CheckRelicanthWailord(void)
             return TRUE;
     }
     return FALSE;
+#endif
 }
 
 // THEORY: this was caused by block commenting out all of the older R/S braille functions but leaving the call to it itself, which creates the nullsub.

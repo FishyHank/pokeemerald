@@ -1215,6 +1215,20 @@ struct SaveBlock1
     /*0x3???*/ struct TrainerHillSave trainerHill;
 #endif //FREE_TRAINER_HILL
     /*0x3???*/ struct WaldaPhrase waldaPhrase;
+    // Nuzlocke encounter checklist: one bit per row of gEncounterZones, in that
+    // table's order. See include/encounter_log.h. Route 101's starter row is
+    // derived from a flag and does not consume its bit.
+    /*0x3???*/ u8 encounterLog[(ENCOUNTER_ZONE_COUNT + 7) / 8];
+    // Set only where the encounter was successfully CAUGHT, so a zone you fled
+    // or fainted in reads differently from one that produced a team member.
+    // encounterLog is always set too, never this alone.
+    /*0x3???*/ u8 encounterCaught[(ENCOUNTER_ZONE_COUNT + 7) / 8];
+    // Set where a catch happened on a zone whose encounter had ALREADY been
+    // spent by an earlier battle - the accidental catch on a route you had
+    // missed, and the second catch on a route you had already cleared. Both
+    // encounterLog and encounterCaught are set too; this is the extra bit that
+    // says the catch was not the one the zone owed you.
+    /*0x3???*/ u8 encounterExtra[(ENCOUNTER_ZONE_COUNT + 7) / 8];
 #if FREE_TRAINER_TOWER == FALSE && IS_FRLG
     u32 towerChallengeId;
     struct TrainerTower trainerTower[NUM_TOWER_CHALLENGE_TYPES];

@@ -1867,14 +1867,32 @@ void CustomTrainerPartyAssignMoves(struct Pokemon *mon, const struct TrainerMon 
 // while everyone else sits below it. Their aces are what the cap thresholds were
 // derived from, so this is very nearly a no-op - it just closes the small gap on
 // Juan.
-static bool32 IsCapAlignedTrainerClass(u32 trainerClass)
+// How far below their area's tier a trainer should land. Gym Leaders sit on the
+// cap; the classes the game itself treats as elite sit just under it; ordinary
+// route filler sits well under. The spread is what turns a chapter into a ramp
+// rather than a flat wall of same-level fights.
+static u32 GetTrainerClassLevelCapOffset(u32 trainerClass)
 {
     switch (trainerClass)
     {
     case TRAINER_CLASS_LEADER:
-        return TRUE;
+        return B_LEADER_LEVEL_CAP_OFFSET;
+    case TRAINER_CLASS_RIVAL:
+    case TRAINER_CLASS_AQUA_ADMIN:
+    case TRAINER_CLASS_AQUA_LEADER:
+    case TRAINER_CLASS_MAGMA_ADMIN:
+    case TRAINER_CLASS_MAGMA_LEADER:
+        return B_NOTABLE_LEVEL_CAP_OFFSET;
+    case TRAINER_CLASS_COOLTRAINER:
+    case TRAINER_CLASS_COOLTRAINER_2:
+    case TRAINER_CLASS_EXPERT:
+    case TRAINER_CLASS_PSYCHIC:
+    case TRAINER_CLASS_DRAGON_TAMER:
+    case TRAINER_CLASS_PKMN_RANGER:
+    case TRAINER_CLASS_HEX_MANIAC:
+        return B_VETERAN_LEVEL_CAP_OFFSET;
     default:
-        return FALSE;
+        return B_TRAINER_LEVEL_CAP_OFFSET;
     }
 }
 
@@ -1925,15 +1943,16 @@ u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer 
         DoTrainerPartyPool(trainer, monIndices, monsCount, battleTypeFlags);
 
 #if B_TRAINER_LEVEL_CAP_SCALING
-        // Trainers are pinned to the level cap of the AREA they belong to, which
-        // is inferred from their vanilla levels - see
-        // GetAreaLevelCapForVanillaLevel in caps.c for why that inference works.
+        // Trainers are pinned into a band below the level cap of the AREA they
+        // are standing in, looked up by map - see sAreaTierByMapSec in caps.c.
+        // How far below depends on their class, so a chapter escalates from
+        // route filler up to the Gym Leader on the cap.
         //
         // Deliberately independent of GetCurrentLevelCap(): a Route 102 Youngster
         // is the same level at eight badges as at one. Scaling against the live
         // cap instead would leave every trainer in the game sitting a fixed few
         // levels under the player forever, no matter how far they'd backtracked.
-        u32 levelShift = 0;
+        s32 levelShift = 0;
         {
             u32 aceLevel = 0, areaCap, j;
 
@@ -1946,27 +1965,71 @@ u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer 
                     aceLevel = trainer->party[j].lvl;
             }
 
-            // 0 means no area scaling applies. Either the trainer is part of the
-            // Elite Four gauntlet (already tuned as a ramp - see
-            // IsGauntletTrainerClass), or they sit above the last tier entirely:
-            // the post-game Steven fight and the late gym rematches, which
-            // belong to the post-game cap rather than any badge-gated area.
-            // Both keep their authored levels untouched.
+            // The area comes from the MAP the battle is on, not from the
+            // trainer's own vanilla level. Inferring it from the level was only
+            // ever a proxy, and it broke on every trainer Game Freak tuned out
+            // of step with their surroundings - Aroma Lady Rose sat at 14 on a
+            // route where everything else was 25.
+            //
+            // 0 means no area scaling applies: the trainer is part of the Elite
+            // Four gauntlet (already tuned as a ramp - see
+            // IsGauntletTrainerClass), or the map is outside the badge
+            // progression entirely. Both keep their authored levels untouched.
             areaCap = IsGauntletTrainerClass(trainer->trainerClass)
-                      ? 0 : GetAreaLevelCapForVanillaLevel(aceLevel);
+                      ? 0 : GetCurrentAreaLevelCap();
 
             if (areaCap != 0)
             {
-                u32 offset = IsCapAlignedTrainerClass(trainer->trainerClass)
-                             ? B_LEADER_LEVEL_CAP_OFFSET : B_TRAINER_LEVEL_CAP_OFFSET;
+                u32 offset = GetTrainerClassLevelCapOffset(trainer->trainerClass);
                 u32 target = (areaCap > offset) ? (areaCap - offset) : 1;
 
                 // One shift for the whole party, so internal level spreads
                 // survive - resolving each mon against the tier separately would
                 // flatten Roxanne's 12/12/15 into a uniform 15/15/15.
-                // Raise only, never lower.
                 if (target > aceLevel)
+                {
                     levelShift = target - aceLevel;
+                }
+                else if (target < aceLevel)
+                {
+                    // Lowering is the fix for close-together cap tiers, but it
+                    // is only safe when the trainer actually belongs to this
+                    // stage. A map section can hold content from two different
+                    // points in the game - the Route 110 Trick House prize
+                    // rooms (level 44-46 inside a tier-24 map section), the
+                    // post-Surf swimmers sharing Route 109 with the beach, the
+                    // post-game Steven fight inside Meteor Falls. Their vanilla
+                    // levels place them above the map's tier, and dragging them
+                    // down to it would gut fights that are supposed to be hard.
+                    u32 vanillaTier = GetAreaLevelCapForVanillaLevel(aceLevel);
+
+                    if (vanillaTier != 0 && vanillaTier <= areaCap)
+                        levelShift = -(s32)(aceLevel - target);
+                }
+            }
+        }
+#endif
+
+#if RANDOMIZER_TRAINERS_ENABLED && RANDOMIZER_GAUNTLET_BAND_ENABLED
+        // Which party member is the "ace" for the gauntlet ace band below.
+        //
+        // Chosen by highest level over the mons ACTUALLY BEING CREATED, not by
+        // party index and not over the whole authored party. Index would be a
+        // guess (it happens to be the last entry for all five gauntlet trainers,
+        // but nothing enforces that), and scanning the authored party would let
+        // a half-team battle drop the ace entirely, silently losing the
+        // guarantee. Ties resolve to the later mon.
+        u32 aceMonIndex = monIndices[0];
+        {
+            u32 k, bestLevel = 0;
+
+            for (k = 0; k < monsCount; k++)
+            {
+                if (trainer->party[monIndices[k]].lvl >= bestLevel)
+                {
+                    bestLevel = trainer->party[monIndices[k]].lvl;
+                    aceMonIndex = monIndices[k];
+                }
             }
         }
 #endif
@@ -1988,14 +2051,33 @@ u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer 
             // filler wearing a bigger number.
             if (levelShift != 0)
             {
-                u32 newLevel = monCopy.lvl + levelShift;
-                monCopy.lvl = (newLevel > MAX_LEVEL) ? MAX_LEVEL : newLevel;
+                // Clamped at both ends: the shift is derived from the party's
+                // ace, so a negative one applied to the weakest member of a
+                // wide spread can otherwise land at or below zero.
+                s32 newLevel = (s32)monCopy.lvl + levelShift;
+
+                if (newLevel > MAX_LEVEL)
+                    newLevel = MAX_LEVEL;
+                else if (newLevel < 1)
+                    newLevel = 1;
+
+                monCopy.lvl = newLevel;
             }
 #endif
 
 #if RANDOMIZER_TRAINERS_ENABLED
             {
                 u32 slotId = RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_TRAINER, (u32)&partyData[monIndex]);
+
+#if RANDOMIZER_GAUNTLET_BAND_ENABLED
+                // The Elite Four and Champion are the one group the level ladder
+                // cannot serve: they are exempt from area scaling, so their band
+                // is decided by whatever levels Game Freak authored in 2004, and
+                // those levels straddle the ladder's 50/51 boundary mid-team.
+                if (IsGauntletTrainerClass(trainer->trainerClass))
+                    monCopy.species = Randomizer_GetGauntletSpecies(slotId, monIndex == aceMonIndex);
+                else
+#endif
                 monCopy.species = Randomizer_GetWildSpeciesForLevel(slotId, monCopy.lvl);
                 // An explicit .ability in trainer data names an ability of the
                 // ORIGINAL species. Once the species is replaced, the lookup

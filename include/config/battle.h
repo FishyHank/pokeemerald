@@ -357,13 +357,24 @@
 // same level at eight badges as at one, and backtracking doesn't drag the whole
 // early game up to your level. See GetAreaLevelCapForVanillaLevel in caps.c.
 //
-// Levels are only ever raised, never lowered. Two groups are skipped entirely
-// and left exactly as designed: the Elite Four gauntlet, which is already
-// authored as a ramp climbing to the cap (Sidney 46-49 through Wallace 55-58),
-// and anything above the last tier - post-game Steven and the late gym
-// rematches, which belong to the post-game cap instead.
+// Levels are moved in BOTH directions to land in the band below, because
+// raise-only silently stopped working wherever two cap tiers sat close
+// together: with tiers of 29/31/33, a vanilla level-31 trainer could never be
+// pulled down to 31-6, so the whole Norman and Winona stretch fought you at
+// exactly your own level. Same at the champion tier of 58.
+//
+// Two groups are skipped entirely and left exactly as designed: the Elite Four
+// gauntlet, which is already authored as a ramp climbing to the cap (Sidney
+// 46-49 through Wallace 55-58), and anything above the last tier - post-game
+// Steven and the late gym rematches, which belong to the post-game cap instead.
+//
+// The offsets below spread trainers into a ramp within each chapter, so the
+// escalation the Elite Four has (each fight live, only the last at parity)
+// repeats once per badge instead of only at the end of the game.
 #define B_TRAINER_LEVEL_CAP_SCALING     TRUE
-#define B_TRAINER_LEVEL_CAP_OFFSET      3          // ordinary trainers land this far below their area's cap
+#define B_TRAINER_LEVEL_CAP_OFFSET      6          // ordinary route trainers (Youngster, Tuber, Swimmer, Hiker...)
+#define B_VETERAN_LEVEL_CAP_OFFSET      3          // tougher classes (Cooltrainer, Expert, Psychic, Ranger...)
+#define B_NOTABLE_LEVEL_CAP_OFFSET      2          // Rivals, Team Aqua/Magma Admins and Leaders
 #define B_LEADER_LEVEL_CAP_OFFSET       0          // Gym Leaders land exactly ON it
 #define B_LEGENDARY_MIN_CATCH_RATE      45         // Floor applied to the catch rate of legendary/mythical/Ultra Beast species (0 disables). Vanilla puts 123 of them at 3, the minimum on the scale, which is ~10 Ultra Balls even at 1 HP and asleep - brutal in a Nuzlocke where a legendary is a one-shot encounter. 45 keeps them hard to catch fresh (~21% per Ultra Ball at full HP) but reliable once properly weakened and statused.
 #define B_CRITICAL_CAPTURE              TRUE       // If set to TRUE, Critical Capture will be enabled.

@@ -30,6 +30,15 @@ u32 GetLevelCapThresholdLevel(u32 index);
 // The level cap of the AREA a trainer belongs to, inferred from their vanilla
 // level. Returns 0 for trainers tuned above the last badge tier (Elite Four,
 // Champion, post-game), which should not be area-scaled at all.
+//
+// Kept as the guard for area scaling rather than as its primary input - see
+// GetAreaLevelCapForMapSec, which supersedes it for choosing the target.
 u32 GetAreaLevelCapForVanillaLevel(u32 level);
+
+// The progression tier of a map, looked up by region map section. Returns 0 for
+// maps outside the Hoenn badge progression (Battle Frontier, FRLG, secret
+// bases), which are left unscaled.
+u32 GetAreaLevelCapForMapSec(u32 mapSec);
+u32 GetCurrentAreaLevelCap(void);
 
 #endif /* GUARD_CAPS_H */

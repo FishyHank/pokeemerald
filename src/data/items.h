@@ -2323,6 +2323,24 @@ const struct ItemInfo gItemsInfo[] =
         .iconPalette = gItemIconPalette_FullRestore,
     },
 
+    [ITEM_ENCOUNTER_LOG] =
+    {
+        .name = ITEM_NAME("Encounter Log"),
+        .price = 0,
+        .description = COMPOUND_STRING(
+            "Lists every area\n"
+            "and whether its\n"
+            "encounter is used."),
+        // Key item for the same reasons as Party Heal above: never consumed,
+        // never sold, and POCKET_KEY_ITEMS is what makes it reusable.
+        .importance = 1,
+        .pocket = POCKET_KEY_ITEMS,
+        .type = ITEM_USE_FIELD,
+        .fieldUseFunc = ItemUseOutOfBattle_EncounterLog,
+        .iconPic = gItemIcon_TownMap,
+        .iconPalette = gItemIconPalette_TownMap,
+    },
+
     [ITEM_SUPER_REPEL] =
     {
         .name = ITEM_NAME("Super Repel"),

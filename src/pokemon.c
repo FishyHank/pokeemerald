@@ -6432,6 +6432,43 @@ bool32 DoesSpeciesHaveFormChangeMethod(enum Species species, enum FormChanges me
     return FALSE;
 }
 
+// A move the PRE-EVOLUTION also learns at this same level was already offered
+// during the level-up itself, so offering it again after evolving is a second
+// prompt for the move the player just declined. (Accepting it hides the problem
+// - GiveMoveToMon returns MON_ALREADY_KNOWS_MOVE and the scene skips on - so it
+// only ever shows up as "it asks again for the move I skipped".)
+//
+// This is guaranteed by this hack's randomized learnsets: they are generated per
+// evolution FAMILY (see Randomizer_GetLevelUpLearnset), so both stages share an
+// identical table and EVERY level-matching entry is a repeat of the level-up
+// offer. It also happens on vanilla data wherever a family lists the same move
+// at the same level on both stages.
+//
+// Level 0 entries are genuine evolution-only moves and are never filtered here -
+// there is no level-up offer for them to duplicate.
+static bool32 WasMoveOfferedBeforeEvolving(enum Species species, enum Move move, u32 level)
+{
+    enum Species preEvo;
+    const struct LevelUpMove *learnset;
+    u32 i;
+
+    if (level == 0)
+        return FALSE;
+
+    preEvo = GetSpeciesPreEvolution(species);
+    if (preEvo == SPECIES_NONE)
+        return FALSE;
+
+    learnset = GetSpeciesLevelUpLearnset(preEvo);
+    for (i = 0; learnset[i].move != LEVEL_UP_MOVE_END; i++)
+    {
+        if (learnset[i].level == level && learnset[i].move == move)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
 u16 MonTryLearningNewMoveEvolution(struct Pokemon *mon, bool8 firstMove)
 {
     enum Species species = GetMonData(mon, MON_DATA_SPECIES);
@@ -6448,11 +6485,24 @@ u16 MonTryLearningNewMoveEvolution(struct Pokemon *mon, bool8 firstMove)
     }
     while (learnset[sLearningMoveTableID].move != LEVEL_UP_MOVE_END)
     {
-        while ((learnset[sLearningMoveTableID].level == 0 || learnset[sLearningMoveTableID].level == level)
-             && !(P_EVOLUTION_LEVEL_1_LEARN >= GEN_8 && learnset[sLearningMoveTableID].level == 1))
+        if ((learnset[sLearningMoveTableID].level == 0 || learnset[sLearningMoveTableID].level == level)
+         && !(P_EVOLUTION_LEVEL_1_LEARN >= GEN_8 && learnset[sLearningMoveTableID].level == 1))
         {
-            gMoveToLearn = learnset[sLearningMoveTableID].move;
+            enum Move move = learnset[sLearningMoveTableID].move;
+            u32 moveLevel = learnset[sLearningMoveTableID].level;
+
             sLearningMoveTableID++;
+
+            if (WasMoveOfferedBeforeEvolving(species, move, moveLevel))
+            {
+                // The pre-evolution lookup fetches another species' learnset,
+                // which can evict this one from the randomizer's direct-mapped
+                // cache and leave `learnset` pointing at the wrong table.
+                learnset = GetSpeciesLevelUpLearnset(species);
+                continue;
+            }
+
+            gMoveToLearn = move;
             return GiveMoveToMon(mon, gMoveToLearn);
         }
         sLearningMoveTableID++;

@@ -68,40 +68,85 @@
 #define RANDOMIZER_STATIC_SCALE_LEVEL_TO_CAP TRUE
 #define RANDOMIZER_STATIC_LEVEL_CAP_OFFSET   0    // land this far above the cap (0 = exactly on it)
 
+// Keep the 8 HM moves (Cut, Fly, Surf, Strength, Flash, Rock Smash, Waterfall,
+// Dive) out of TM contents and tutor slots. This MATCHES vanilla, which never
+// puts an HM move on a machine or a tutor - a randomized "TM34 - Rock Smash" is
+// an artifact of this hack, and under OW_HMS_BADGE_ONLY it also reads like it
+// should unlock traversal when it does nothing of the kind.
+//
+// Level-up learnsets are deliberately NOT covered, also to match vanilla: HM
+// moves are common natural moves in the real games (Rock Smash in 317 species'
+// learnsets, Dive 123, Surf 71, Fly 64, Strength 36, Flash 25, Waterfall 22,
+// Cut 11). See IsTeachableMoveValidRandomizerPick for where this is applied and
+// why it is not applied to the shared filter.
+#define RANDOMIZER_EXCLUDE_HM_MOVES          TRUE
+
+// The Elite Four and the Champion draw from their own band instead of the
+// level-based ladder every other trainer uses, and their ace is guaranteed to
+// clear RANDOMIZER_GAUNTLET_ACE_BST_MIN.
+//
+// The ladder made the gauntlet climax an accident of vanilla level data. Its
+// legendary/600+ tier only opens above level 50, so Sidney - whose party is
+// 46-49 - could not field a 600 BST Pokemon at all, and Phoebe could only do it
+// with her single level-51 ace. Across all 26 mons in the five fights, 13% of
+// seeds contained no 600+ Pokemon anywhere. Worse, the wide 400-720 tier made a
+// legendary MORE likely than a 600+ (19% vs 13% per eligible mon), so the most
+// probable "boss moment" was a level-58 Phione.
+//
+// The ace floor is what makes each fight land; the band floor is what stops the
+// other five being route filler in a champion's team.
+// The ace band is a raised FLOOR, not a separate window: 720 is the top of the
+// BST scale, so both bands share one max and the ace differs only in how high
+// it has to start. Keeping a second ceiling here just made it possible to
+// misconfigure the ace band narrower than the band it is supposed to top.
+#define RANDOMIZER_GAUNTLET_BAND_ENABLED     TRUE
+#define RANDOMIZER_GAUNTLET_BST_MIN          500
+#define RANDOMIZER_GAUNTLET_ACE_BST_MIN      600
+#define RANDOMIZER_GAUNTLET_BST_MAX          720
+
 // ---------------------------------------------------------------------------
 // Loot-pool exclusions
 // ---------------------------------------------------------------------------
 // These do NOT disable any mechanic. They only keep items that can't do
-// anything in this hack out of the field/hidden/gift rolls, where each one
-// would occupy a slot that could have held something usable. Flip one to FALSE
-// if you ever make the matching mechanic reachable.
+// anything for the player out of the field/hidden/gift rolls, where each one
+// would occupy a slot that could have held something usable.
+//
+// One toggle per REASON, not one per item family: everything grouped under a
+// toggle is excluded for the same cause, so the families were only ever going
+// to be flipped together. See IsItemValidRandomizerPick for the matching, which
+// is by hold effect wherever one exists rather than by item id range.
 
-// Mega Evolution and Z-Moves are each gated on a key item the player can never
-// get: nothing in the game grants ITEM_MEGA_RING or ITEM_Z_POWER_RING, and the
-// battle code hard-requires them (see CanMegaEvolve in src/battle_util.c and
-// src/battle_z_move.c). That leaves 47 Mega Stones and 35 Z-Crystals as inert
-// held items - the same situation the Tera Shards were in.
-#define RANDOMIZER_EXCLUDE_MEGA_STONES       TRUE
-#define RANDOMIZER_EXCLUDE_Z_CRYSTALS        TRUE
+// Items whose mechanic cannot run at all here, so they are pure dead weight:
+//
+//   Mega Stones (47)  Mega Evolution is gated on ITEM_MEGA_RING and Z-Moves on
+//   Z-Crystals (35)   ITEM_Z_POWER_RING. Nothing in the game grants either, and
+//                     the battle code hard-requires them - see CanMegaEvolve in
+//                     src/battle_util.c and src/battle_z_move.c.
+//   Dynamax items     Need ITEM_DYNAMAX_BAND (also never granted), and
+//                     B_FLAG_DYNAMAX_BATTLE is 0.
+//   Tera Shards (19)  Set a Tera type, which means nothing with Terastal off.
+//                     This is the one family that is ALSO gated on the live
+//                     B_ENABLE_TERASTAL flag, so switching Terastal on brings
+//                     the shards back without touching this toggle.
+//   Ability Capsule   Both work by changing a mon's abilityNum.
+//   Ability Patch     Randomizer_GetAbilityForSpecies deliberately ignores
+//                     abilityNum and keys on the evolution family alone, and it
+//                     is the only authority on what ability a mon has, so both
+//                     items report success and then change nothing at all.
+//   Memories (17)     Feed only Silvally's type-changing form change, which
+//                     requires ABILITY_RKS_SYSTEM - an ability no Silvally will
+//                     ever have, for the same reason the Capsule fails.
+#define RANDOMIZER_EXCLUDE_INERT_ITEMS       TRUE
 
-// Dynamax needs ITEM_DYNAMAX_BAND (also never granted) and B_FLAG_DYNAMAX_BATTLE
-// is 0, so the Dynamax Level and Gigantamax items do nothing.
-#define RANDOMIZER_EXCLUDE_DYNAMAX_ITEMS     TRUE
-
-// Ability Capsule and Ability Patch both work by changing a mon's abilityNum.
-// Randomizer_GetAbilityForSpecies deliberately ignores abilityNum and keys on
-// the evolution family alone, and it is the only authority on what ability a mon has, so
-// both items report success and then change nothing at all.
-#define RANDOMIZER_EXCLUDE_ABILITY_CHANGERS  TRUE
-
-// Redundant rather than broken: the Repel Toggle key item is free, reusable and
-// strictly better than any of the three consumable Repels.
-#define RANDOMIZER_EXCLUDE_REPELS            TRUE
-
-// Also redundant: B_EXP_CAP_TYPE is EXP_CAP_HARD and B_RARE_CANDY_CAP is TRUE,
-// so these are inert at the cap, and the Party Heal / Level to Cap key item
-// does the job for free below it.
-#define RANDOMIZER_EXCLUDE_LEVEL_UP_ITEMS    TRUE
+// Items that DO work, but that this hack hands you a strictly better version of
+// for free, so a roll landing on one is a wasted slot:
+//
+//   Repels (3)        The Repel Toggle key item is free, reusable and better
+//                     than any of the three consumables.
+//   Rare Candy        B_EXP_CAP_TYPE is EXP_CAP_HARD and B_RARE_CANDY_CAP is
+//   Exp Candies (5)   TRUE, so these are inert AT the cap, and the Party Heal /
+//                     Level to Cap key item does the job for free below it.
+#define RANDOMIZER_EXCLUDE_REDUNDANT_ITEMS   TRUE
 
 // How many of the visible item balls are guaranteed to contain a TM, out of
 // FIELD_ITEM_SLOT_COUNT (156) total. They are 50 *distinct* TMs drawn from the

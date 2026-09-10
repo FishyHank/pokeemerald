@@ -1061,6 +1061,10 @@ enum __attribute__((packed)) Item
     // Center. Appended for the same save-data reason as the item above.
     ITEM_PARTY_HEAL = 875,
 
+    // Custom key item: the Nuzlocke encounter checklist. Appended for the same
+    // save-data reason as the two above.
+    ITEM_ENCOUNTER_LOG = 876,
+
     ITEMS_COUNT,
     ITEM_FIELD_ARROW = ITEMS_COUNT,
 };

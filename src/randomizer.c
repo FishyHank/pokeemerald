@@ -102,6 +102,42 @@ bool8 Randomizer_IsLegendaryClass(u16 species)
 // they'd fail any nonzero BST floor anyway - but the fallback path below does
 // no BST filtering, and SanitizeSpeciesId asserts on a disabled species
 // (src/pokemon.c), so filter explicitly rather than relying on that.
+// Forms that exist only for the duration of a battle. There is no SpeciesInfo
+// flag for these the way there is for Mega / Primal / Gigantamax / Totem, so
+// they are identified by behaviour: a species whose own form change table sends
+// it to a DIFFERENT species at end of battle or on fainting is one the game
+// intends to revert, not one you can own.
+//
+// Without this they pass every other check and get handed out at full strength,
+// then quietly collapse the moment the battle ends. Wishiwashi-School is the
+// worst case - BST 620 on the field, 175 once you have caught it - and
+// Palafin-Hero (650) and Greninja-Ash (640) are two of the sixteen
+// non-legendary species at 600+, so they are disproportionately likely to turn
+// up as the payoff at the top of a high band. Castform, Cherrim, Minior,
+// Aegislash, Eiscue, Morpeko and Darmanitan-Zen are the same shape lower down.
+//
+// The "different species" test is what keeps real Pokemon in: Rayquaza, Kyogre
+// and Ogerpon-Teal all carry END_BATTLE / FAINT entries pointing at themselves,
+// which is a reset to base form, not a transient form.
+static bool8 IsTransientBattleForm(u16 species)
+{
+    const struct FormChange *formChanges = GetSpeciesFormChanges(species);
+    u32 i;
+
+    if (formChanges == NULL)
+        return FALSE;
+
+    for (i = 0; formChanges[i].method != FORM_CHANGE_TERMINATOR; i++)
+    {
+        if ((formChanges[i].method == FORM_CHANGE_END_BATTLE
+          || formChanges[i].method == FORM_CHANGE_FAINT)
+         && formChanges[i].targetSpecies != species)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
 static bool8 IsSpeciesValidRandomizerPick(u16 species)
 {
     const struct SpeciesInfo *info = &gSpeciesInfo[species];
@@ -109,6 +145,8 @@ static bool8 IsSpeciesValidRandomizerPick(u16 species)
     if (!IsSpeciesEnabled(species))
         return FALSE;
     if (info->isMegaEvolution || info->isPrimalReversion || info->isGigantamax || info->isTotem)
+        return FALSE;
+    if (IsTransientBattleForm(species))
         return FALSE;
 
     return TRUE;
@@ -134,13 +172,37 @@ u16 Randomizer_GetRandomSpeciesInBSTRange(u32 slotId, u16 bstMin, u16 bstMax, bo
         return species;
     }
 
-    // Fallback so we can never hang. Relaxes the BST band and the legendary
-    // rule (a thin band is exactly why we'd land here) but NOT the validity
-    // filter - scan forward from a rolled starting point for the first species
-    // the game can actually create. The previous version returned a completely
-    // unfiltered roll, which could hand back a disabled species or a Mega form.
+    // Fallback so we can never hang: scan forward from a rolled starting point.
+    //
+    // The scan HONOURS the band, and that is the whole point of it. An earlier
+    // version relaxed the band here on the theory that a thin band is why we'd
+    // land in the fallback at all - but relaxing it means the answer is no
+    // longer a member of the pool the caller asked for, and the caller has no
+    // way to tell. The narrower the band, the more often the fallback fires and
+    // the more wrong its answer is, so the failure mode got worse exactly where
+    // the band mattered most. Mirrors GetStaticEncounterSpecies, whose scan has
+    // always re-applied its own filter.
     start = Randomizer_GetSlotRollRange(slotId, 1, NUM_SPECIES - 1);
 
+    for (i = 0; i < NUM_SPECIES - 1; i++)
+    {
+        u16 species = 1 + (((start - 1) + i) % (NUM_SPECIES - 1));
+        u16 bst = Randomizer_GetBST(species);
+
+        if (!IsSpeciesValidRandomizerPick(species))
+            continue;
+        if (bst < bstMin || bst > bstMax)
+            continue;
+        if (!allowLegendary && Randomizer_IsLegendaryClass(species))
+            continue;
+
+        return species;
+    }
+
+    // Only reachable if the band is genuinely empty for this build's species
+    // set - a config error, not a thin-band accident, since the scan above
+    // visits every species exactly once. Relax to any creatable species rather
+    // than handing back SPECIES_NONE, which callers would try to instantiate.
     for (i = 0; i < NUM_SPECIES - 1; i++)
     {
         u16 species = 1 + (((start - 1) + i) % (NUM_SPECIES - 1));
@@ -307,6 +369,98 @@ u16 Randomizer_GetWildSpeciesForLevel(u32 slotId, u8 level)
 
 }
 
+// BST band by AREA, which is what wild encounters use. Trainers keep the
+// level-based ladder above, because a trainer's level already derives from the
+// area tier minus their class offset, so it carries the same information.
+//
+// Why the area and not the encounter's own level: the level ladder banded each
+// slot by the level that particular encounter happened to roll, and 27% of
+// Hoenn's slots have a level range that straddles a band boundary - Route 102's
+// surf slots are 20-30, which is two bands. Those slots produce two different
+// Pokemon depending on the roll, on the same route, from the same slot. Keying
+// on the area makes a route's pool a single flat answer, which is also what the
+// one-encounter-per-area Nuzlocke rule assumes.
+//
+// The top three tiers are deliberately above the old 580 ceiling. Under the
+// level ladder no wild Pokemon in Hoenn could ever reach 600 BST - only 132 of
+// 4099 slots even reached level 41, so the practical ceiling was around 500 for
+// the entire game and the pseudo-legendaries were unobtainable outside the
+// seven static slots.
+//
+// Legendaries stay out of wild encounters entirely. The statics are the
+// legendary content; letting Route 128 hand one over would flatten that.
+static const u16 sWildBstBandByAreaTier[][3] =
+{
+    // tier   min   max
+    {15,      180,  320},
+    {19,      250,  380},
+    {24,      300,  450},
+    {29,      350,  500},
+    {31,      380,  530},
+    {33,      400,  550},
+    {42,      450,  600},  // pseudo-legendaries become reachable here
+    {46,      480,  650},
+    {52,      500,  680},
+    {58,      500,  700},
+};
+
+u16 Randomizer_GetWildSpeciesForArea(u32 slotId, u8 level)
+{
+    u32 areaTier = GetCurrentAreaLevelCap();
+    u32 i;
+
+    // 0 means the map is outside the badge progression - the Battle Frontier,
+    // secret bases, the FRLG maps, and the two post-game caves (Artisan Cave,
+    // Desert Underpass) that no badge tier describes. Fall back to banding by
+    // the encounter's own level, which is what the whole game used before.
+    if (areaTier == 0)
+        return Randomizer_GetWildSpeciesForLevel(slotId, level);
+
+    // First band at or above the area's tier. Matching on >= rather than == so
+    // a tier that isn't in the table can't silently fall through to nothing -
+    // the Trick House overrides reach 78, and while none of those maps have
+    // wild encounters today, a new area with an unlisted tier should land in
+    // the top band rather than be left unbanded.
+    for (i = 0; i < ARRAY_COUNT(sWildBstBandByAreaTier); i++)
+    {
+        if (areaTier <= sWildBstBandByAreaTier[i][0])
+            return Randomizer_GetRandomSpeciesInBSTRange(slotId,
+                                                         sWildBstBandByAreaTier[i][1],
+                                                         sWildBstBandByAreaTier[i][2],
+                                                         FALSE);
+    }
+
+    i = ARRAY_COUNT(sWildBstBandByAreaTier) - 1;
+    return Randomizer_GetRandomSpeciesInBSTRange(slotId,
+                                                 sWildBstBandByAreaTier[i][1],
+                                                 sWildBstBandByAreaTier[i][2],
+                                                 FALSE);
+}
+
+// Elite Four and Champion mons. Legendaries are allowed here, as they were
+// under the old level-based path - the difference is the floor, which stops the
+// gauntlet fielding 400-BST filler, and the ace band, which guarantees each
+// fight has something worth remembering.
+//
+// The ace band is only ~82 species, thin enough that the reroll budget in
+// Randomizer_GetRandomSpeciesInBSTRange runs out about 4% of the time. That is
+// safe now and was NOT before: the fallback scan used to abandon the band
+// entirely, so one champion ace in 25 would have been an unbanded species. The
+// scan honours the band now, which is what makes a band this narrow usable.
+u16 Randomizer_GetGauntletSpecies(u32 slotId, bool8 isAce)
+{
+    if (isAce)
+        return Randomizer_GetRandomSpeciesInBSTRange(slotId,
+                                                     RANDOMIZER_GAUNTLET_ACE_BST_MIN,
+                                                     RANDOMIZER_GAUNTLET_BST_MAX,
+                                                     TRUE);
+
+    return Randomizer_GetRandomSpeciesInBSTRange(slotId,
+                                                 RANDOMIZER_GAUNTLET_BST_MIN,
+                                                 RANDOMIZER_GAUNTLET_BST_MAX,
+                                                 TRUE);
+}
+
 // ---------------------------------------------------------------------------
 // Randomized tutor moves
 // ---------------------------------------------------------------------------
@@ -326,6 +480,39 @@ u16 Randomizer_GetWildSpeciesForLevel(u32 slotId, u8 level)
 // games. They are damaging, correctly typed and normally powered, so they pass
 // every category and power check any domain applies; only an explicit ban stops
 // them.
+// The HM moves, read out of the machine table rather than listed literally, so
+// this tracks FOREACH_HM (include/constants/tms_hms.h) if the set ever changes.
+//
+// Safe to read through GetTMHMMoveId even with RANDOMIZER_TM_MOVES_ENABLED on:
+// that function only randomizes indices 1..NUM_TECHNICAL_MACHINES, so the HM
+// indices above it always return the real, vanilla HM moves. Doing the reverse
+// lookup instead (GetTMHMItemIdFromMoveId) would NOT be safe - it searches the
+// randomized forward map, so in a seed where some TM rolled Surf it could
+// answer "TM07" for Surf and this test would miss.
+//
+// The loop MUST start above NUM_TECHNICAL_MACHINES, and not merely as a
+// shortcut. Including the TM indices would make GetTMHMMoveId call
+// Randomizer_GetTMMove -> BuildTMMoveTable -> PickTeachableMove ->
+// IsMoveValidRandomizerPick -> back into here, i.e. unbounded recursion while
+// the TM table is halfway through being built. Do not "generalise" this to
+// NUM_ALL_MACHINES starting at 1.
+// Guarded so flipping the toggle off doesn't leave an unused static function
+// warning behind.
+#if RANDOMIZER_EXCLUDE_HM_MOVES
+static bool8 IsHMMove(u32 move)
+{
+    u32 i;
+
+    for (i = NUM_TECHNICAL_MACHINES + 1; i <= NUM_ALL_MACHINES; i++)
+    {
+        if (GetTMHMMoveId(i) == move)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+#endif
+
 static bool8 IsMoveValidRandomizerPick(u32 move)
 {
     if (move == MOVE_NONE || move == MOVE_STRUGGLE || move >= MOVES_COUNT)
@@ -347,9 +534,30 @@ static bool8 IsMoveValidRandomizerPick(u32 move)
 }
 
 // A machine/tutor move has to be a real, teachable move.
+//
+// HM moves are excluded HERE and not in IsMoveValidRandomizerPick, because the
+// two paths differ in vanilla and the point is to match vanilla:
+//
+//   - No TM teaches an HM move (zero of FOREACH_TM's 50 entries are HM moves)
+//     and no tutor does either, so a randomized "TM34 - Rock Smash" is purely
+//     an artifact of this hack. It also reads like it should unlock traversal,
+//     which under OW_HMS_BADGE_ONLY it never does.
+//   - Level-up learnsets, by contrast, are FULL of HM moves in the real games:
+//     Rock Smash appears in 317 species' learnsets, Dive 123, Surf 71, Fly 64,
+//     Strength 36, Flash 25, Waterfall 22, and Cut 11 (Farfetch'd and friends).
+//     So a Pokemon learning Cut on level-up is vanilla behaviour, not a bug,
+//     and PickLearnsetMove is deliberately left free to roll them.
 static bool8 IsTeachableMoveValidRandomizerPick(u32 move)
 {
-    return IsMoveValidRandomizerPick(move);
+    if (!IsMoveValidRandomizerPick(move))
+        return FALSE;
+
+#if RANDOMIZER_EXCLUDE_HM_MOVES
+    if (IsHMMove(move))
+        return FALSE;
+#endif
+
+    return TRUE;
 }
 
 static enum Move PickTeachableMove(u32 slotId)
@@ -1251,6 +1459,23 @@ static bool32 IsAbilityChangingItem(enum Item item)
     return item == ITEM_ABILITY_CAPSULE || item == ITEM_ABILITY_PATCH;
 }
 
+// By hold effect, not id range - the Memories are not contiguous and the
+// Plates, which we deliberately KEEP, sit right alongside them. Plates are real
+// items here: HOLD_EFFECT_PLATE shares its case with HOLD_EFFECT_TYPE_POWER in
+// CalcMoveBasePowerAfterModifiers, so a Draco Plate is a +20% Dragon boost for
+// anything holding it. HOLD_EFFECT_MEMORY has no such case, so past the dead
+// Silvally form change the one remaining path is setting Multi-Attack's type
+// (EFFECT_CHANGE_TYPE_ON_ITEM), which needs a party mon to have rolled that
+// exact move - too narrow to keep 17 loot slots alive for.
+//
+// Deliberately NOT extended to the Drives: those look identical on paper, but
+// Genesect's form change carries no ability requirement, so a Drive is live the
+// moment a static encounter rolls Genesect.
+static bool32 IsMemoryItem(enum Item item)
+{
+    return gItemsInfo[item].holdEffect == HOLD_EFFECT_MEMORY;
+}
+
 static bool32 IsRepelItem(enum Item item)
 {
     return item >= ITEM_REPEL && item <= ITEM_MAX_REPEL;
@@ -1298,38 +1523,20 @@ static bool32 IsItemValidRandomizerPick(enum Item item, bool32 allowTMs)
     if (IsPlaceholderItem(item))
         return FALSE;
 
-#if !B_ENABLE_TERASTAL
-    if (IsTeraShard(item))
+#if RANDOMIZER_EXCLUDE_INERT_ITEMS
+    // The Tera Shards carry the extra !B_ENABLE_TERASTAL guard because theirs is
+    // the only mechanic here that a config flag can actually switch back on.
+    if (IsMegaStone(item)
+     || IsZCrystal(item)
+     || IsDynamaxItem(item)
+     || IsAbilityChangingItem(item)
+     || IsMemoryItem(item)
+     || (!B_ENABLE_TERASTAL && IsTeraShard(item)))
         return FALSE;
 #endif
 
-#if RANDOMIZER_EXCLUDE_MEGA_STONES
-    if (IsMegaStone(item))
-        return FALSE;
-#endif
-
-#if RANDOMIZER_EXCLUDE_Z_CRYSTALS
-    if (IsZCrystal(item))
-        return FALSE;
-#endif
-
-#if RANDOMIZER_EXCLUDE_DYNAMAX_ITEMS
-    if (IsDynamaxItem(item))
-        return FALSE;
-#endif
-
-#if RANDOMIZER_EXCLUDE_ABILITY_CHANGERS
-    if (IsAbilityChangingItem(item))
-        return FALSE;
-#endif
-
-#if RANDOMIZER_EXCLUDE_REPELS
-    if (IsRepelItem(item))
-        return FALSE;
-#endif
-
-#if RANDOMIZER_EXCLUDE_LEVEL_UP_ITEMS
-    if (IsLevelUpItem(item))
+#if RANDOMIZER_EXCLUDE_REDUNDANT_ITEMS
+    if (IsRepelItem(item) || IsLevelUpItem(item))
         return FALSE;
 #endif
 

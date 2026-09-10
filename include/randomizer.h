@@ -56,11 +56,23 @@ u16 Randomizer_GetRandomSpeciesInBSTRange(u32 slotId, u16 bstMin, u16 bstMax, bo
 // Returns a randomized species appropriate for the given starter slot (0-2).
 // Same slot always returns the same species for this save.
 u16 Randomizer_GetStarterSpecies(u8 starterSlot);
-// Returns a randomized species for a wild encounter slot, tiered by the
-// level that slot would normally produce (higher level = stronger tier,
-// legendaries only possible at high levels). Same slotId always returns
-// the same species for this save.
+// Returns a randomized species tiered by the level of the encounter itself
+// (higher level = stronger tier, legendaries only possible above level 50).
+// Used by TRAINER party generation, where the level already encodes how far
+// into the game the fight is, and as the fallback for maps with no area tier.
+// Same slotId always returns the same species for this save.
 u16 Randomizer_GetWildSpeciesForLevel(u32 slotId, u8 level);
+
+// Returns a randomized species tiered by the AREA the encounter happens in,
+// so every slot on a route draws from one band regardless of the level rolled.
+// This is what WILD encounters use. Never returns a legendary. Falls back to
+// Randomizer_GetWildSpeciesForLevel where the map has no badge tier.
+u16 Randomizer_GetWildSpeciesForArea(u32 slotId, u8 level);
+
+// Returns a randomized species for an Elite Four or Champion mon, from a band
+// with a high floor rather than the level-based ladder. Pass isAce TRUE for the
+// party's highest-level member to force it into the ace band.
+u16 Randomizer_GetGauntletSpecies(u32 slotId, bool8 isAce);
 
 // Returns a randomized level-up learnset for this species: a small random
 // starting kit at level 1 (at least 1 damaging move), followed by 21 taught

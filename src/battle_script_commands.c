@@ -33,6 +33,7 @@
 #include "string_util.h"
 #include "pokemon_icon.h"
 #include "caps.h"
+#include "encounter_log.h"
 #include "m4a.h"
 #include "mail.h"
 #include "event_data.h"
@@ -10256,6 +10257,12 @@ static void Cmd_givecaughtmon(void)
         // Copy changedSpecies to allow caught mon to revert to its original species.
         if (emptySlot != PARTY_SIZE)
             gBattleStruct->partyState[B_SIDE_PLAYER][emptySlot].changedSpecies = GetBattlerPartyState(GetCatchingBattler())->changedSpecies;
+
+        // Nuzlocke checklist. Here rather than at the encounter hook because
+        // this is the one point that means "a wild mon actually joined the
+        // team"; gMapHeader still describes the map the battle started on.
+        // The mon is passed so a shiny catch can be exempted.
+        EncounterLog_MarkCurrentZoneCaught(caughtMon);
 
         gBattleResults.caughtMonSpecies = GetMonData(caughtMon, MON_DATA_SPECIES);
         GetMonData(caughtMon, MON_DATA_NICKNAME, gBattleResults.caughtMonNick);

@@ -4,6 +4,7 @@
 #include "battle_setup.h"
 #include "battle_tower.h"
 #include "battle_transition.h"
+#include "encounter_log.h"
 #include "main.h"
 #include "task.h"
 #include "safari_zone.h"
@@ -270,6 +271,11 @@ static void Task_BattleStart(u8 taskId)
 static void CreateBattleStartTask(enum BattleTransition transition, u16 song)
 {
     u8 taskId = CreateTask(Task_BattleStart, 1);
+
+    // Every battle funnels through here, and it runs after the wild mons have
+    // been generated - the one point that reliably means "the encounter is
+    // over, the battle is beginning". See EncounterLog_OnBattleStart.
+    EncounterLog_OnBattleStart();
 
     gTasks[taskId].tTransition = transition;
     PlayMapChosenOrBattleBGM(song);

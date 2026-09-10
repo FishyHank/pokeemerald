@@ -1697,6 +1697,33 @@ static void ItemUseOnFieldCB_TownMap(u8 taskId)
     DestroyTask(taskId);
 }
 
+static void ItemUseOnFieldCB_EncounterLog(u8 taskId)
+{
+    LockPlayerFieldControls();
+    ScriptContext_SetupScript(EventScript_EncounterLog);
+    DestroyTask(taskId);
+}
+
+// Encounter Log (ITEM_ENCOUNTER_LOG). Same shape as the Town Map below, which
+// is the pattern for a key item that opens a full screen: close the bag, return
+// to the field, and let the field callback run the script that owns the screen.
+void ItemUseOutOfBattle_EncounterLog(u8 taskId)
+{
+    if (!gTasks[taskId].tUsingRegisteredKeyItem)
+    {
+        sItemUseOnFieldCB = ItemUseOnFieldCB_EncounterLog;
+        gFieldCallback = FieldCB_UseItemOnField;
+        gBagMenu->newScreenCallback = CB2_ReturnToField;
+        Task_FadeAndCloseBagMenu(taskId);
+    }
+    else
+    {
+        // Registered to Select: there is no bag screen to close, so go straight
+        // to the field callback.
+        gTasks[taskId].func = ItemUseOnFieldCB_EncounterLog;
+    }
+}
+
 void ItemUseOutOfBattle_TownMap(u8 taskId)
 {
     if (!gTasks[taskId].tUsingRegisteredKeyItem)

@@ -222,6 +222,10 @@ void NewGameInitData(void)
     // Portable Poke Center. Granted rather than sold for the same reason as the
     // two above: it's a quality-of-life fixture of this hack, not a reward.
     AddBagItem(ITEM_PARTY_HEAL, 1);
+    // Nuzlocke encounter checklist. Granted up front like the rest - it records
+    // encounters from the very first route, so it has to be in hand before the
+    // player can possibly use one.
+    AddBagItem(ITEM_ENCOUNTER_LOG, 1);
     // PC Link - portable Pokemon Storage, same reasoning again. This one is NOT
     // a custom item: ITEM_POKEMON_BOX_LINK already existed in the expansion,
     // fully implemented as a reusable key item, and was simply never granted by

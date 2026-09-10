@@ -16,6 +16,7 @@
 #include "field_message_box.h"
 #include "field_player_avatar.h"
 #include "field_screen_effect.h"
+#include "encounter_log.h"
 #include "field_specials.h"
 #include "field_weather.h"
 #include "graphics.h"
@@ -1009,6 +1010,22 @@ u8 GetLeadMonFriendshipScore(void)
 static void CB2_FieldShowRegionMap(void)
 {
     FieldInitRegionMap(CB2_ReturnToFieldContinueScriptPlayMapMusic);
+}
+
+// Nuzlocke Encounter Log (ITEM_ENCOUNTER_LOG). Routed through a script and this
+// special, exactly like the region map above, rather than being driven straight
+// from the item callback: the script's lockall/releaseall is what keeps field
+// control balanced across the return-to-field cycle. Driving a full-screen UI
+// from a menu callback without that is what black-screened the pause-menu Flash
+// row twice - see the history comment in src/fldeff_flash.c.
+static void CB2_FieldShowEncounterLog(void)
+{
+    ShowEncounterLogScreen(CB2_ReturnToFieldContinueScriptPlayMapMusic);
+}
+
+void FieldShowEncounterLog(void)
+{
+    SetMainCallback2(CB2_FieldShowEncounterLog);
 }
 
 void FieldShowRegionMap(void)

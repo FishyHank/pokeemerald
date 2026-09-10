@@ -18,6 +18,7 @@
 #include "field_specials.h"
 #include "field_weather.h"
 #include "field_screen_effect.h"
+#include "fldeff.h"
 #include "frontier_pass.h"
 #include "frontier_util.h"
 #include "gpu_regs.h"
@@ -879,27 +880,33 @@ static bool8 StartMenuDigCallback(void)
 
 static bool8 StartMenuFlashCallback(void)
 {
+    // Wait out any fade before tearing the overworld down, same guard the
+    // Pokedex / Bag / Player rows use. Returning FALSE keeps the menu open and
+    // retries next frame.
+    if (gPaletteFade.active)
+        return FALSE;
+
+    // Exactly the teardown the other full-screen rows do. Note there is no
+    // HideStartMenu() here on purpose: CleanupOverworldWindowsAndTilemaps takes
+    // the start menu window with it, and HideStartMenu would additionally
+    // unlock controls and unfreeze objects - which must stay LOCKED across the
+    // return-to-field cycle, exactly as they do when this row's neighbours open
+    // a full screen. EventScript_UseFlash's releaseall is what unlocks, at the
+    // end of the animation.
+    PlayRainStoppingSoundEffect();
     RemoveExtraStartMenuWindows();
-    HideStartMenu(); // closes the menu, unfreezes objects and unlocks controls
+    CleanupOverworldWindowsAndTilemaps();
 
-    PlaySE(SE_M_REFLECT);
-    FlagSet(FLAG_SYS_USE_FLASH);
-
-    // Deliberately NOT EventScript_UseFlash / animateflash. The hardware window
-    // params are already armed by the time this row can be picked - the row
-    // only appears in an unlit cave, and such a map loads with a nonzero flash
-    // level, so map load ran InitCurrentFlashLevelScanlineEffect already. The
-    // problem is the control lock: AnimateFlash calls LockPlayerFieldControls
-    // and relies on the script's releaseall to undo it, but HideStartMenu has
-    // already unlocked above, so that pair runs inverted. The party-menu route
-    // never hits this because it fades in through
-    // FieldCallback_PrepareFadeInFromMenu with controls still locked.
+    // Do NOT set FLAG_SYS_USE_FLASH or touch the flash level here - FldEff_UseFlash
+    // sets the flag and EventScript_UseFlash sets the level, at the right point
+    // in the animation. Setting them early made the earlier versions of this
+    // row disagree with the effect that was actually on screen.
     //
-    // So do what map load does instead: set the level from the flag we just
-    // set, then re-arm the effect. No animation, but it lights up correctly and
-    // immediately, with no lock state to get wrong.
-    SetDefaultFlashLevel();
-    InitCurrentFlashLevelScanlineEffect();
+    // The return-to-field cycle below is the fix for the black screen; see
+    // SetUpFieldMove_FlashFromStartMenu in src/fldeff_flash.c for why re-arming
+    // the scanline effect in place could never work from here.
+    SetUpFieldMove_FlashFromStartMenu(GetFieldMoveUserSlot());
+    SetMainCallback2(CB2_ReturnToField);
     return TRUE;
 }
 

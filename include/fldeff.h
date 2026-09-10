@@ -24,6 +24,10 @@ void ChooseMonForSoftboiled(u8 taskId);
 
 // flash
 bool32 SetUpFieldMove_Flash(void);
+// Pause-menu Flash (OW_FLASH_FROM_START_MENU). Arms the post-menu callbacks;
+// the caller must then SetMainCallback2(CB2_ReturnToField) - the return-to-field
+// cycle is load-bearing, see the comment on the definition.
+void SetUpFieldMove_FlashFromStartMenu(u8 partySlot);
 void CB2_DoChangeMap(void);
 bool8 GetMapPairFadeToType(u8 _fromType, u8 _toType);
 bool8 GetMapPairFadeFromType(u8 _fromType, u8 _toType);

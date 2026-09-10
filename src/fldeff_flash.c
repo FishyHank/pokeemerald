@@ -27,7 +27,16 @@ struct FlashStruct
 };
 
 static void FieldCallback_Flash(void);
+static void FieldCallback_FlashFromStartMenu(void);
 static void FldEff_UseFlash(void);
+
+// Party slot whose sprite plays the field-move animation when Flash is chosen
+// from the PAUSE MENU. The party-menu route reads this from the menu cursor
+// (GetCursorSelectionMonId), which has no meaning on the pause-menu path, so
+// the caller supplies it up front. It has to survive the return-to-field cycle
+// below, hence EWRAM rather than a local or gFieldEffectArguments (which the
+// map-resume path is free to stomp).
+EWRAM_DATA static u8 sStartMenuFlashUser = 0;
 static bool8 TryDoMapTransition(void);
 static void DoExitCaveTransition(void);
 static void Task_ExitCaveTransition1(u8 taskId);
@@ -94,6 +103,50 @@ static void FieldCallback_Flash(void)
 {
     u8 taskId = CreateFieldMoveTask();
     gFieldEffectArguments[0] = GetCursorSelectionMonId();
+    gTasks[taskId].data[8] = (uintptr_t)FldEff_UseFlash >> 16;
+    gTasks[taskId].data[9] = (uintptr_t)FldEff_UseFlash;
+}
+
+// Pause-menu entry point for Flash (OW_FLASH_FROM_START_MENU). Arms the SAME
+// post-menu callback machinery the party-menu route uses in
+// SetUpFieldMove_Flash above; the caller then hands control to
+// CB2_ReturnToField, which is what actually makes this work.
+//
+// HISTORY - two earlier versions of the pause-menu row both black-screened the
+// cave, so do not "simplify" this back toward either of them:
+//
+//   1. Ran EventScript_UseFlash directly after HideStartMenu(). Black screen
+//      until the player left and re-entered the cave.
+//   2. Skipped the script and re-armed the effect in place with
+//      SetDefaultFlashLevel() + InitCurrentFlashLevelScanlineEffect(). Same
+//      black screen. The comment on that version blamed a lock inversion, and
+//      that diagnosis was WRONG: AnimateFlash calls LockPlayerFieldControls
+//      itself and EventScript_UseFlash's releaseall balances it, which is why
+//      removing the script changed nothing. (Compare EventScript_UseDig, which
+//      does carry its own lockall - that is why the DIG row works.)
+//
+// The real difference is that EVERY working flash setup in the game happens
+// after a full teardown. ReturnToFieldLocal -> ResumeMap does
+// ScanlineEffect_Clear(), then InitViewGraphics re-runs
+// InitCurrentFlashLevelScanlineEffect, and only then does RunFieldCallback fire
+// the post-menu callback. Both broken versions re-armed the WIN0H scanline DMA
+// in place, mid-frame, while DMA0 was live on the same buffers - and a
+// collapsed WIN0H is exactly a black screen. The player's own workaround
+// (leaving and re-entering) was the map-load path doing the teardown properly.
+//
+// So: don't re-arm the effect here. Go through the return-to-field cycle and
+// let the proven sequence run.
+void SetUpFieldMove_FlashFromStartMenu(u8 partySlot)
+{
+    sStartMenuFlashUser = partySlot;
+    gFieldCallback2 = FieldCallback_PrepareFadeInFromMenu;
+    gPostMenuFieldCallback = FieldCallback_FlashFromStartMenu;
+}
+
+static void FieldCallback_FlashFromStartMenu(void)
+{
+    u8 taskId = CreateFieldMoveTask();
+    gFieldEffectArguments[0] = sStartMenuFlashUser;
     gTasks[taskId].data[8] = (uintptr_t)FldEff_UseFlash >> 16;
     gTasks[taskId].data[9] = (uintptr_t)FldEff_UseFlash;
 }
