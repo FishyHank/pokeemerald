@@ -10,7 +10,9 @@ EverGrandeCity_PokemonCenter_1F_OnTransition:
 
 EverGrandeCity_PokemonCenter_1F_EventScript_TryShowScott::
 	goto_if_unset FLAG_BADGE06_GET, Common_EventScript_NopReturn
+#if !STREAMLINE_MINIMAL_SCOTT
 	clearflag FLAG_HIDE_EVER_GRANDE_POKEMON_CENTER_1F_SCOTT
+#endif
 	return
 
 EverGrandeCity_PokemonCenter_1F_EventScript_Nurse::

@@ -105,12 +105,7 @@ SootopolisCity_Gym_1F_EventScript_JuanDefeated::
 	call Common_EventScript_SetGymTrainers
 	call SootopolisCity_Gym_1F_EventScript_GiveWaterPulse
 	closemessage
-	delay 30
-	playfanfare MUS_REGISTER_MATCH_CALL
-	msgbox SootopolisCity_Gym_1F_Text_RegisteredJuan, MSGBOX_DEFAULT
-	waitfanfare
-	closemessage
-	delay 30
+	matchcall_register SootopolisCity_Gym_1F_Text_RegisteredJuan
 	setflag FLAG_ENABLE_JUAN_MATCH_CALL
 	release
 	end

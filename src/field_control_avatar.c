@@ -788,6 +788,7 @@ static bool8 TryStartStepCountScript(u16 metatileBehavior)
             ScriptContext_SetupScript(IslandCave_EventScript_OpenRegiEntrance);
             return TRUE;
         }
+#if !STREAMLINE_NO_STORY_POKENAV_CALLS
         if (ShouldDoWallyCall() == TRUE)
         {
             ScriptContext_SetupScript(MauvilleCity_EventScript_RegisterWallyCall);
@@ -813,6 +814,7 @@ static bool8 TryStartStepCountScript(u16 metatileBehavior)
             ScriptContext_SetupScript(MossdeepCity_SpaceCenter_2F_EventScript_RivalRayquazaCall);
             return TRUE;
         }
+#endif
         if (UpdateVsSeekerStepCounter())
         {
             ScriptContext_SetupScript(EventScript_VsSeekerChargingDone);
@@ -827,8 +829,10 @@ static bool8 TryStartStepCountScript(u16 metatileBehavior)
         ScriptContext_SetupScript(SSTidalCorridor_EventScript_ReachedStepCount);
         return TRUE;
     }
+#if !STREAMLINE_NO_MATCH_CALL
     if (TryStartMatchCall())
         return TRUE;
+#endif
     return FALSE;
 }
 

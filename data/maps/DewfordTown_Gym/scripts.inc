@@ -149,23 +149,37 @@ DewfordTown_Gym_EventScript_BrawlyDefeated::
 	msgbox DewfordTown_Gym_Text_KnuckleBadgeInfoTakeThis, MSGBOX_DEFAULT
 	setflag FLAG_DEFEATED_DEWFORD_GYM
 	setflag FLAG_BADGE02_GET
+	call DewfordTown_Gym_EventScript_CompleteStevenLetter
 	addvar VAR_PETALBURG_GYM_STATE, 1
 	call_if_eq VAR_PETALBURG_GYM_STATE, 6, Common_EventScript_ReadyPetalburgGymForBattle
 	setvar VAR_0x8008, 2
 	call Common_EventScript_SetGymTrainers
 	call DewfordTown_Gym_EventScript_GiveBulkUp
 	closemessage
-	delay 30
-	playfanfare MUS_REGISTER_MATCH_CALL
-	msgbox DewfordTown_Gym_Text_RegisteredBrawly, MSGBOX_DEFAULT
-	waitfanfare
-	closemessage
-	delay 30
+	matchcall_register DewfordTown_Gym_Text_RegisteredBrawly
 	setflag FLAG_ENABLE_BRAWLY_MATCH_CALL
 	setvar VAR_ROXANNE_CALL_STEP_COUNTER, 0
 	setflag FLAG_ENABLE_ROXANNE_FIRST_CALL
 	release
 	end
+
+@ Granite Cave is encounters-only in this hack: both 1F ladders down to B1F were
+@ removed, and 1F's two halves only ever connected through B1F, so Steven's Room
+@ at (5,10) is unreachable and the Letter can never be handed over.
+@
+@ Mr. Briney gates the Slateport route on FLAG_DELIVERED_STEVEN_LETTER
+@ (data/maps/DewfordTown/scripts.inc) - until it is set he only offers to sail
+@ back to Petalburg. The Knuckle Badge therefore stands in for the delivery:
+@ beating Brawly is what opens the next area.
+@
+@ The Letter is taken here too. It is a Key Item, so it cannot be tossed, and
+@ Briney is only unhidden by the Devon Corp 3F cutscene that hands it over
+@ (clearflag FLAG_HIDE_BRINEYS_HOUSE_MR_BRINEY) - so the player always holds it
+@ by the time they can reach this gym.
+DewfordTown_Gym_EventScript_CompleteStevenLetter::
+	setflag FLAG_DELIVERED_STEVEN_LETTER
+	removeitem ITEM_LETTER
+	return
 
 DewfordTown_Gym_EventScript_GiveBulkUp::
 	giveitem ITEM_TM_BULK_UP

@@ -150,7 +150,16 @@ BattleFrontier_ScottsHouse_EventScript_WelcomeToFrontier::
 	applymovement LOCALID_SCOTTS_HOUSE_SCOTT, Common_Movement_FacePlayer
 	waitmovement 0
 	msgbox BattleFrontier_ScottsHouse_Text_HaveThisAsMementoOfOurPathsCrossing, MSGBOX_DEFAULT
+#if STREAMLINE_MINIMAL_SCOTT
+	@ >= rather than == because VAR_SCOTT_STATE is seeded to 13 at new game now
+	@ (his story meetings are gone). Twelve addvar sites still exist in scripts
+	@ belonging to Scott NPCs that are permanently hidden; if one ever became
+	@ reachable again the var would land on 14 and an equality test would silently
+	@ drop this reward to the 3 BP tier. See include/config/streamline.h.
+	goto_if_ge VAR_SCOTT_STATE, 13, BattleFrontier_ScottsHouse_EventScript_Give4BattlePoints
+#else
 	goto_if_eq VAR_SCOTT_STATE, 13, BattleFrontier_ScottsHouse_EventScript_Give4BattlePoints
+#endif
 	goto_if_ge VAR_SCOTT_STATE, 9, BattleFrontier_ScottsHouse_EventScript_Give3BattlePoints
 	goto_if_ge VAR_SCOTT_STATE, 6, BattleFrontier_ScottsHouse_EventScript_Give2BattlePoints
 	goto BattleFrontier_ScottsHouse_EventScript_Give1BattlePoint

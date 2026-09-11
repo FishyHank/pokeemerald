@@ -51,6 +51,16 @@ SlateportCity_OnFrame:
 	.2byte 0
 
 SlateportCity_EventScript_ScottScene::
+#if STREAMLINE_MINIMAL_SCOTT
+	@ Scott's museum scene is removed. The map-name popup was suppressed for the
+	@ cutscene and has to be restored, and the state var still has to advance or
+	@ the on-frame script re-fires.
+	lockall
+	clearflag FLAG_HIDE_MAP_NAME_POPUP
+	setvar VAR_SLATEPORT_OUTSIDE_MUSEUM_STATE, 2
+	releaseall
+	end
+#else
 	lockall
 	addobject LOCALID_SLATEPORT_SCOTT
 	applymovement LOCALID_PLAYER, SlateportCity_Movement_PlayerFaceScott
@@ -64,14 +74,8 @@ SlateportCity_EventScript_ScottScene::
 	msgbox SlateportCity_Text_MaybeThisTrainer, MSGBOX_DEFAULT
 	applymovement LOCALID_SLATEPORT_SCOTT, Common_Movement_WalkInPlaceFasterRight
 	waitmovement 0
-	msgbox SlateportCity_Text_LetsRegisterEachOther, MSGBOX_DEFAULT
-	closemessage
-	delay 30
-	playfanfare MUS_REGISTER_MATCH_CALL
-	msgbox SlateportCity_Text_RegisteredScott, MSGBOX_DEFAULT
-	waitfanfare
-	closemessage
-	delay 30
+	matchcall_register_intro SlateportCity_Text_LetsRegisterEachOther
+	matchcall_register SlateportCity_Text_RegisteredScott
 	setflag FLAG_ENABLE_SCOTT_MATCH_CALL
 	msgbox SlateportCity_Text_KeepEyeOnTrainersBeSeeingYou, MSGBOX_DEFAULT
 	closemessage
@@ -85,6 +89,7 @@ SlateportCity_EventScript_ScottScene::
 	addvar VAR_SCOTT_STATE, 1
 	releaseall
 	end
+#endif
 
 SlateportCity_Movement_PlayerFaceScott:
 	delay_16
@@ -862,6 +867,14 @@ SlateportCity_EventScript_NotEnoughBerryPowder::
 	end
 
 SlateportCity_EventScript_ScottBattleTentScene::
+#if STREAMLINE_MINIMAL_SCOTT
+	@ Scott walking out of the Battle Tent is removed; only the state advance is
+	@ kept so the on-frame script does not re-fire.
+	lockall
+	setvar VAR_SLATEPORT_OUTSIDE_MUSEUM_STATE, 3
+	releaseall
+	end
+#else
 	lockall
 	applymovement LOCALID_PLAYER, Common_Movement_FaceUp
 	waitmovement 0
@@ -883,6 +896,7 @@ SlateportCity_EventScript_ScottBattleTentScene::
 	setvar VAR_SLATEPORT_OUTSIDE_MUSEUM_STATE, 3
 	releaseall
 	end
+#endif
 
 SlateportCity_Movement_PushPlayerDown:
 	lock_facing_direction

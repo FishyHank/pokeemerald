@@ -25,7 +25,11 @@ PetalburgCity_EventScript_SetGymDoorsUnlocked::
 	return
 
 PetalburgCity_OnFrame:
+#if !STREAMLINE_NO_WALLY_TUTORIAL
+	@ Tutorial removed; state 2 is never produced. Guarded so the scene cannot be
+	@ entered even if a save somehow sits on it.
 	map_script_2 VAR_PETALBURG_CITY_STATE, 2, PetalburgCity_EventScript_WallyTutorial
+#endif
 	map_script_2 VAR_PETALBURG_CITY_STATE, 4, PetalburgCity_EventScript_WalkToWallyHouse
 	.2byte 0
 
@@ -528,6 +532,14 @@ PetalburgCity_EventScript_Scott3::
 	end
 
 PetalburgCity_EventScript_Scott::
+#if STREAMLINE_MINIMAL_SCOTT
+	@ Scott's first meeting is removed. The setvar is kept because it is what
+	@ disarms the four trigger tiles on this map (see map.json), so without it
+	@ the player would re-enter this script every time they crossed one.
+	setvar VAR_SCOTT_PETALBURG_ENCOUNTER, 1
+	releaseall
+	end
+#else
 	applymovement LOCALID_PETALBURG_SCOTT, PetalburgCity_Movement_ScottStartWalkLeft
 	waitmovement 0
 	playse SE_PIN
@@ -560,6 +572,7 @@ PetalburgCity_EventScript_Scott::
 	removeobject LOCALID_PETALBURG_SCOTT
 	releaseall
 	end
+#endif
 
 PetalburgCity_EventScript_ScottExit0::
 	applymovement LOCALID_PLAYER, PetalburgCity_Movement_PlayerWatchScottExit0

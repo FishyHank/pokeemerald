@@ -30,6 +30,21 @@ RustboroCity_OnFrame:
 
 RustboroCity_EventScript_ScientistAddMatchCall::
 	lockall
+#if STREAMLINE_NO_MATCH_CALL
+	@ Streamlined: the Devon scientist's Match Call tutorial is skipped whole.
+	@ Only the state this scene owned is applied. FLAG_HAS_MATCH_CALL and
+	@ FLAG_ADDED_MATCH_CALL_TO_POKENAV are deliberately never set, which is what
+	@ keeps the Match Call page out of the PokeNav and stops trainers offering to
+	@ register after battles. The scientist is simply left hidden (new_game.inc
+	@ already sets his hide flag) instead of being added and removed again.
+	@ See include/config/streamline.h.
+	setvar VAR_ROUTE104_STATE, 1
+	setflag FLAG_HIDE_RUSTBORO_CITY_SCIENTIST
+	setvar VAR_RUSTBORO_CITY_STATE, 7
+	clearflag FLAG_HIDE_MAP_NAME_POPUP
+	releaseall
+	end
+#else
 	setvar VAR_ROUTE104_STATE, 1
 	applymovement LOCALID_PLAYER, RustboroCity_Movement_PlayerWalkDown
 	waitmovement 0
@@ -66,6 +81,7 @@ RustboroCity_EventScript_ScientistAddMatchCall::
 	closemessage
 	delay 20
 	goto RustboroCity_EventScript_MatchCallTutorial
+#endif
 
 RustboroCity_EventScript_PleaseSelectPokenav::
 	msgbox RustboroCity_Text_PleaseSelectPokenav, MSGBOX_DEFAULT
@@ -827,14 +843,8 @@ RustboroCity_EventScript_MayEncounter::
 	goto_if_set FLAG_DEFEATED_RIVAL_RUSTBORO, RustboroCity_EventScript_MayBrineyHint
 	goto_if_set FLAG_MET_RIVAL_RUSTBORO, RustboroCity_EventScript_MayAskToBattle
 	setflag FLAG_MET_RIVAL_RUSTBORO
-	msgbox RustboroCity_Text_MayHiLetsRegister, MSGBOX_DEFAULT
-	closemessage
-	delay 30
-	playfanfare MUS_REGISTER_MATCH_CALL
-	msgbox RustboroCity_Text_RegisteredMay, MSGBOX_DEFAULT
-	waitfanfare
-	closemessage
-	delay 30
+	matchcall_register_intro RustboroCity_Text_MayHiLetsRegister
+	matchcall_register RustboroCity_Text_RegisteredMay
 	setflag FLAG_ENABLE_RIVAL_MATCH_CALL
 	setvar VAR_RUSTBORO_CITY_STATE, 8
 	setvar VAR_ROUTE104_STATE, 2
@@ -895,14 +905,8 @@ RustboroCity_EventScript_BrendanEncounter::
 	goto_if_set FLAG_DEFEATED_RIVAL_RUSTBORO, RustboroCity_EventScript_BrendanBrineyHint
 	goto_if_set FLAG_MET_RIVAL_RUSTBORO, RustboroCity_EventScript_BrendanAskToBattle
 	setflag FLAG_MET_RIVAL_RUSTBORO
-	msgbox RustboroCity_Text_BrendanHiLetsRegister, MSGBOX_DEFAULT
-	closemessage
-	delay 30
-	playfanfare MUS_REGISTER_MATCH_CALL
-	msgbox RustboroCity_Text_RegisteredBrendan, MSGBOX_DEFAULT
-	waitfanfare
-	closemessage
-	delay 30
+	matchcall_register_intro RustboroCity_Text_BrendanHiLetsRegister
+	matchcall_register RustboroCity_Text_RegisteredBrendan
 	setflag FLAG_ENABLE_RIVAL_MATCH_CALL
 	setvar VAR_RUSTBORO_CITY_STATE, 8
 	setvar VAR_ROUTE104_STATE, 2

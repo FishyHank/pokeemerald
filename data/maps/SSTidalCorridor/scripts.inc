@@ -183,6 +183,16 @@ SSTidalCorridor_EventScript_TrainerNotDefeated::
 	return
 
 SSTidalCorridor_EventScript_ScottScene::
+#if STREAMLINE_MINIMAL_SCOTT
+	@ Scott's Battle Frontier invitation is removed, but FLAG_MET_SCOTT_ON_SS_TIDAL
+	@ MUST still be set: it is what offers Battle Frontier as a ferry destination
+	@ (SlateportCity_Harbor and src/script_menu.c both branch on it).
+	lockall
+	setflag FLAG_MET_SCOTT_ON_SS_TIDAL
+	setvar VAR_SS_TIDAL_SCOTT_STATE, 1
+	releaseall
+	end
+#else
 	lockall
 	applymovement LOCALID_SS_TIDAL_SCOTT, SSTidalCorridor_Movement_ScottApproachPlayer
 	waitmovement 0
@@ -204,6 +214,7 @@ SSTidalCorridor_EventScript_ScottScene::
 	setvar VAR_SS_TIDAL_SCOTT_STATE, 1
 	releaseall
 	end
+#endif
 
 SSTidalCorridor_Movement_ScottApproachPlayer:
 	walk_left

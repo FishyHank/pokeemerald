@@ -146,6 +146,8 @@ Route119_EventScript_RivalExitScottArrive::
 	savebgm MUS_DUMMY
 	fadedefaultbgm
 	delay 60
+#if !STREAMLINE_MINIMAL_SCOTT
+	@ Scott's appearance after the Route 119 rival battle.
 	call_if_eq VAR_TEMP_1, 1, Route119_EventScript_SetScottPos1
 	call_if_eq VAR_TEMP_1, 2, Route119_EventScript_SetScottPos2
 	addobject LOCALID_ROUTE119_SCOTT
@@ -157,6 +159,7 @@ Route119_EventScript_RivalExitScottArrive::
 	call_if_eq VAR_TEMP_1, 1, Route119_EventScript_ScottExit1
 	call_if_eq VAR_TEMP_1, 2, Route119_EventScript_ScottExit2
 	removeobject LOCALID_ROUTE119_SCOTT
+#endif
 	releaseall
 	end
 

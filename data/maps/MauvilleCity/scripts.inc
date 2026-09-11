@@ -158,6 +158,9 @@ MauvilleCity_EventScript_DefeatedWally::
 	setflag FLAG_DEFEATED_WALLY_MAUVILLE
 	setvar VAR_WALLY_CALL_STEP_COUNTER, 0
 	setflag FLAG_ENABLE_FIRST_WALLY_POKENAV_CALL
+#if !STREAMLINE_MINIMAL_SCOTT
+	@ Scott's appearance after the Wally battle. Nothing outside this block needs
+	@ it - VAR_SCOTT_STATE is seeded at new game instead.
 	call_if_eq VAR_FACING, DIR_NORTH, MauvilleCity_EventScript_ScottApproachPlayerNorth
 	call_if_eq VAR_FACING, DIR_EAST, MauvilleCity_EventScript_ScottApproachPlayerEast
 	applymovement LOCALID_PLAYER, Common_Movement_WalkInPlaceFasterDown
@@ -168,6 +171,7 @@ MauvilleCity_EventScript_DefeatedWally::
 	call_if_eq VAR_FACING, DIR_NORTH, MauvilleCity_EventScript_ScottExitNorth
 	call_if_eq VAR_FACING, DIR_EAST, MauvilleCity_EventScript_ScottExitEast
 	removeobject LOCALID_MAUVILLE_SCOTT
+#endif
 	releaseall
 	end
 
@@ -448,12 +452,7 @@ MauvilleCity_EventScript_RegisterWallyCall::
 	lockall
 	pokenavcall MauvilleCity_Text_WallyPokenavCall
 	waitmessage
-	delay 30
-	playfanfare MUS_REGISTER_MATCH_CALL
-	msgbox MauvilleCity_Text_RegisteredWally, MSGBOX_DEFAULT
-	waitfanfare
-	closemessage
-	delay 30
+	matchcall_register MauvilleCity_Text_RegisteredWally
 	setflag FLAG_ENABLE_WALLY_MATCH_CALL
 	clearflag FLAG_ENABLE_FIRST_WALLY_POKENAV_CALL
 	releaseall

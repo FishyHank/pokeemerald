@@ -144,8 +144,11 @@
 //   Repels (3)        The Repel Toggle key item is free, reusable and better
 //                     than any of the three consumables.
 //   Rare Candy        B_EXP_CAP_TYPE is EXP_CAP_HARD and B_RARE_CANDY_CAP is
-//   Exp Candies (5)   TRUE, so these are inert AT the cap, and the Party Heal /
-//                     Level to Cap key item does the job for free below it.
+//   Exp Candies (5)   TRUE, so these are inert AT the cap, and the party menu's
+//                     level-to-cap option does the job for free below it.
+//   Exp. Share        Nothing to share: no EXP is gained at the cap, and getting
+//                     to the cap is already free. A held item here, not a key
+//                     item, so IsKeyItem does not catch it.
 #define RANDOMIZER_EXCLUDE_REDUNDANT_ITEMS   TRUE
 
 // How many of the visible item balls are guaranteed to contain a TM, out of

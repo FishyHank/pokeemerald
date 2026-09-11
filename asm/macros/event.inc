@@ -2952,3 +2952,32 @@
 	getbraillestringwidth \text
 	call EventScript_BrailleCursorWaitButton
 	.endm
+
+	@ The "Registered <someone> in the PokeNav!" ceremony: a fanfare, the message,
+	@ and two half-second pauses either side of it. Expands to nothing when
+	@ STREAMLINE_NO_MATCH_CALL is set - see include/config/streamline.h.
+	@
+	@ Callers keep whatever closemessage/waitmessage they already had on the line
+	@ before this, so the preceding message is still closed when this expands
+	@ empty. Nothing here sets a flag; the setflags stayed at the call sites.
+	.macro matchcall_register text:req
+#if !STREAMLINE_NO_MATCH_CALL
+	delay 30
+	playfanfare MUS_REGISTER_MATCH_CALL
+	msgbox \text, MSGBOX_DEFAULT
+	waitfanfare
+	closemessage
+	delay 30
+#endif
+	.endm
+
+	@ The line that only exists to set up registering - "Let's register each
+	@ other!", "Is that a PokeNav?". Always immediately precedes a
+	@ matchcall_register, and goes away with it. Includes the closemessage that
+	@ followed it, since there is then no message left open.
+	.macro matchcall_register_intro text:req
+#if !STREAMLINE_NO_MATCH_CALL
+	msgbox \text, MSGBOX_DEFAULT
+	closemessage
+#endif
+	.endm

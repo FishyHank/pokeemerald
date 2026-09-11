@@ -70,7 +70,13 @@ PetalburgCity_Gym_EventScript_TurnPlayerNorth::
 	end
 
 PetalburgCity_Gym_OnFrame:
+#if !STREAMLINE_NO_WALLY_TUTORIAL
+	@ The tutorial is gone, so state 1 is never produced here. Guarded anyway:
+	@ beating any gym does addvar VAR_PETALBURG_GYM_STATE, 1, so a state of 0 plus
+	@ one gym win would land on 1 and fire this scene with Wally not on the map -
+	@ applymovement on an absent object. Norman's script self-heals such a save.
 	map_script_2 VAR_PETALBURG_GYM_STATE, 1, PetalburgCity_Gym_EventScript_ReturnFromWallyTutorial
+#endif
 	.2byte 0
 
 PetalburgCity_Gym_EventScript_ReturnFromWallyTutorial::
@@ -141,6 +147,18 @@ PetalburgCity_Gym_EventScript_BeginWallyTutorialEast::
 	end
 
 PetalburgCity_Gym_EventScript_BeginWallyTutorial::
+#if STREAMLINE_NO_WALLY_TUTORIAL
+	@ Tutorial removed - see include/config/streamline.h. Applies the end state
+	@ the three scenes produced, then drops straight into Norman's no-badges
+	@ line. No warps, and Wally is never unhidden.
+	setflag FLAG_HIDE_PETALBURG_CITY_WALLYS_MOM
+	setflag FLAG_HIDE_LITTLEROOT_TOWN_BIRCHS_LAB_RIVAL
+	special InitBirchState
+	setvar VAR_PETALBURG_CITY_STATE, 3
+	setvar VAR_PETALBURG_GYM_STATE, 2
+	goto PetalburgCity_Gym_EventScript_NormanNoBadges
+	end
+#else
 	addobject LOCALID_PETALBURG_GYM_WALLY
 	playse SE_DOOR
 	call_if_eq VAR_0x8008, 0, PetalburgCity_Gym_EventScript_WallyArriveSouth
@@ -191,6 +209,7 @@ PetalburgCity_Gym_EventScript_BeginWallyTutorial::
 	waitstate
 	release
 	end
+#endif
 
 PetalburgCity_Gym_EventScript_WallyArriveSouth::
 	applymovement LOCALID_PETALBURG_GYM_NORMAN, Common_Movement_WalkInPlaceFasterDown

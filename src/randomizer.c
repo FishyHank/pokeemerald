@@ -1499,6 +1499,19 @@ static bool32 IsLevelUpItem(enum Item item)
         || (item >= ITEM_EXP_CANDY_XS && item <= ITEM_EXP_CANDY_XL);
 }
 
+// I_EXP_SHARE_ITEM is GEN_5 here, so the Exp. Share is an ordinary held item
+// with importance 0 - IsKeyItem does not cover it. It has nothing left to do:
+// B_EXP_CAP_TYPE is EXP_CAP_HARD, so no EXP is gained at the cap at all, and
+// below the cap the party menu's level-to-cap option (AutoLevelMonToCap) gets
+// a mon there for free and instantly. Same bucket as the Exp Candies.
+//
+// Harmless if I_EXP_SHARE_ITEM is ever raised to GEN_6+: the item becomes a key
+// item there and IsKeyItem rejects it before this is reached.
+static bool32 IsExpShareItem(enum Item item)
+{
+    return item == ITEM_EXP_SHARE;
+}
+
 // A key item here means anything with a nonzero importance: story items, HMs,
 // bikes, the Itemfinder, and this hack's own Repel Toggle. None of them may be
 // created by a roll or destroyed by one.
@@ -1545,7 +1558,7 @@ static bool32 IsItemValidRandomizerPick(enum Item item, bool32 allowTMs)
 #endif
 
 #if RANDOMIZER_EXCLUDE_REDUNDANT_ITEMS
-    if (IsRepelItem(item) || IsLevelUpItem(item))
+    if (IsRepelItem(item) || IsLevelUpItem(item) || IsExpShareItem(item))
         return FALSE;
 #endif
 

@@ -1,3 +1,17 @@
+@ Progression gate: walls off the beach east of HOUSE1 (door at 17,14), which
+@ otherwise opens onto a route that should not be reachable this early.
+@
+@ Behind FLAG_HIDE_DEWFORD_BLOCKING_ROCK so one setflag opens it later. If the
+@ gap east of the house turns out to be more than one tile wide, duplicate the
+@ object event rather than widening anything here.
+DewfordTown_EventScript_BlockingRock::
+	msgbox DewfordTown_Text_BlockingRock, MSGBOX_SIGN
+	end
+
+DewfordTown_Text_BlockingRock:
+	.string "A large rock blocks the way.\p"
+	.string "It won't budge.$"
+
 DewfordTown_MapScripts::
 	map_script MAP_SCRIPT_ON_TRANSITION, DewfordTown_OnTransition
 	.byte 0
@@ -69,6 +83,20 @@ DewfordTown_EventScript_HallSign::
 	msgbox DewfordTown_Text_HallSign, MSGBOX_SIGN
 	end
 
+@ The Old Rod now comes from the fisherman in PETALBURG CITY, who points at
+@ DewfordTown_EventScript_OldRodFisherman below. This one keeps the town
+@ populated but no longer offers a rod - he drops straight into the existing
+@ post-rod fishing chat, so no new text was needed.
+DewfordTown_EventScript_Fisherman::
+	lock
+	faceplayer
+	goto DewfordTown_EventScript_HowsFishing
+	end
+
+@ Still named DewfordTown_* but used by the PETALBURG City fisherman
+@ (data/maps/PetalburgCity/map.json). Left in place because the HowsFishing
+@ chain it falls through to is a multichoice with several sub-scripts and texts
+@ that would all have to move with it.
 DewfordTown_EventScript_OldRodFisherman::
 	lock
 	faceplayer

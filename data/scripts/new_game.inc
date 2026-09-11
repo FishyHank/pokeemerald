@@ -252,6 +252,17 @@ EventScript_ResetAllMapFlags::
 	setflag FLAG_HIDE_OLDALE_TOWN_RIVAL
 	setflag FLAG_HIDE_ROUTE_101_BOY
 	setflag FLAG_HIDE_PETALBURG_CITY_SCOTT
+#if STREAMLINE_MINIMAL_SCOTT
+	@ Scott's story appearances are removed - see include/config/streamline.h.
+	@ These three start visible in vanilla (nothing sets their hide flag until
+	@ later in the story), so they are hidden up front instead.
+	setflag FLAG_HIDE_RUSTBORO_CITY_POKEMON_SCHOOL_SCOTT
+	setflag FLAG_HIDE_LILYCOVE_MOTEL_SCOTT
+	setflag FLAG_HIDE_MOSSDEEP_CITY_SCOTT
+	@ Stands in for the meetings that no longer happen, so his house still pays
+	@ out its top Battle Point tier.
+	setvar VAR_SCOTT_STATE, 13
+#endif
 	setflag FLAG_HIDE_SOOTOPOLIS_CITY_RAYQUAZA
 	setflag FLAG_HIDE_SOOTOPOLIS_CITY_KYOGRE
 	setflag FLAG_HIDE_SOOTOPOLIS_CITY_GROUDON
