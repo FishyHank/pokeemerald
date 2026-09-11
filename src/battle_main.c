@@ -1871,6 +1871,30 @@ void CustomTrainerPartyAssignMoves(struct Pokemon *mon, const struct TrainerMon 
 // cap; the classes the game itself treats as elite sit just under it; ordinary
 // route filler sits well under. The spread is what turns a chapter into a ramp
 // rather than a flat wall of same-level fights.
+// TRUE for every class that should sit at the area Gym Leader's LOWEST party
+// level instead of at a class offset under the cap: route trainers and Gym
+// trainers alike. Leaders stay on the cap and the notable classes (rivals, Aqua
+// and Magma) keep their own band, so a chapter still escalates into its boss.
+//
+// Gym trainers cannot be told apart from route trainers by class - a Gym
+// Youngster is the same TRAINER_CLASS_YOUNGSTER as a route one - which is
+// exactly why they share a band here rather than getting one of their own.
+static bool32 UsesAreaTrainerLevel(u32 trainerClass)
+{
+    switch (trainerClass)
+    {
+    case TRAINER_CLASS_LEADER:
+    case TRAINER_CLASS_RIVAL:
+    case TRAINER_CLASS_AQUA_ADMIN:
+    case TRAINER_CLASS_AQUA_LEADER:
+    case TRAINER_CLASS_MAGMA_ADMIN:
+    case TRAINER_CLASS_MAGMA_LEADER:
+        return FALSE;
+    default:
+        return TRUE;
+    }
+}
+
 static u32 GetTrainerClassLevelCapOffset(u32 trainerClass)
 {
     switch (trainerClass)
@@ -1980,8 +2004,18 @@ u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer 
 
             if (areaCap != 0)
             {
-                u32 offset = GetTrainerClassLevelCapOffset(trainer->trainerClass);
-                u32 target = (areaCap > offset) ? (areaCap - offset) : 1;
+                u32 areaTrainerLevel = GetAreaTrainerLevel(areaCap);
+                u32 target;
+
+                if (areaTrainerLevel != 0 && UsesAreaTrainerLevel(trainer->trainerClass))
+                {
+                    target = areaTrainerLevel;
+                }
+                else
+                {
+                    u32 offset = GetTrainerClassLevelCapOffset(trainer->trainerClass);
+                    target = (areaCap > offset) ? (areaCap - offset) : 1;
+                }
 
                 // One shift for the whole party, so internal level spreads
                 // survive - resolving each mon against the tier separately would

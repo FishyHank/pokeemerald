@@ -154,4 +154,18 @@
 // all 50" is a goal a player can actually track. Must be <= 58.
 #define RANDOMIZER_GUARANTEED_TM_COUNT       50
 
+// Rydel's one-time gift. He no longer sells or swaps bikes - the Macro Bike is
+// granted at the start of the run - so the shop hands out a single item chosen
+// from this many rolled options instead.
+//
+// TMs are in the pool on purpose: RANDOMIZER_TM_MOVES_ENABLED means a TM number
+// says nothing about its move, but I_TM_NAMES_SHOW_MOVE puts the real move in
+// the item's name, so what Rydel offers is an informed choice.
+//
+// RAISING THIS ALSO NEEDS SCRIPT WORK: data/maps/MauvilleCity_BikeShop has one
+// dynmultipush line and one VAR_0x800x per choice, and they are static. Bump
+// this without adding those and the extra options simply never appear.
+#define RANDOMIZER_SHOP_GIFT_ENABLED         TRUE
+#define RANDOMIZER_SHOP_GIFT_CHOICES         2
+
 #endif // GUARD_CONFIG_RANDOMIZER_H

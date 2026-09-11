@@ -1124,11 +1124,20 @@ static void GenerateLevelUpLearnset(enum Species species, struct LevelUpMove *le
         u32 offsetInTier = 0;
         u32 j;
 
+        // NOTHING is taught before the first badge. The reference Invitational
+        // ROM teaches no level-up move at all while the cap sits at 15, so the
+        // level-1 starting kit is the entire moveset for the whole first gym.
+        // Tier 0 is dropped from the spread rather than given fewer moves,
+        // which also keeps every taught level safely above 15 - the clamp
+        // below is against prevCapLevel, and for tier 1 that is 15.
+        u32 firstTier = (numTiers > 1) ? 1 : 0;
+        u32 spreadTiers = numTiers - firstTier;
+
         for (i = 0; i < RANDOMIZER_LEARNSET_TAUGHT_MOVES; i++)
         {
             u32 slotIndex = RANDOMIZER_LEARNSET_STARTER_MOVES + i;
             u32 slotId = RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_LEARNSET, ((u32)species << 8) | slotIndex);
-            u32 tierIndex = (i * numTiers) / RANDOMIZER_LEARNSET_TAUGHT_MOVES;
+            u32 tierIndex = firstTier + (i * spreadTiers) / RANDOMIZER_LEARNSET_TAUGHT_MOVES;
             u32 capLevel = (GetLevelCapThresholdCount() == 0) ? MAX_LEVEL : GetLevelCapThresholdLevel(tierIndex);
             u32 prevCapLevel = (tierIndex == 0) ? 1 : GetLevelCapThresholdLevel(tierIndex - 1);
             u32 powerMin, powerMax;
@@ -1649,6 +1658,74 @@ enum Item Randomizer_GetGiftItem(u32 index, enum Item vanillaItem)
     return PickRandomItem(RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_GIFT_ITEM, index), TRUE);
 }
 
+// Rydel's one-time gift: RANDOMIZER_SHOP_GIFT_CHOICES rolled items, of which
+// the player keeps exactly one. TMs are allowed in the pool - see the comment
+// on the toggle in include/config/randomizer.h.
+//
+// Deduplicated against the earlier choices, because two identical options is a
+// choice that isn't one. The reroll walks the slot index rather than adding to
+// it, so each attempt is a genuinely independent hash - the same rule as
+// Randomizer_GetSlotRollAttempt, and for the same reason.
+enum Item Randomizer_GetShopGift(u32 choiceIndex)
+{
+#if RANDOMIZER_SHOP_GIFT_ENABLED
+    u32 attempt, earlier;
+
+    if (choiceIndex >= RANDOMIZER_SHOP_GIFT_CHOICES)
+        return ITEM_NONE;
+
+    for (attempt = 0; attempt < RANDOMIZER_MAX_REROLLS; attempt++)
+    {
+        u32 slotIndex = choiceIndex + attempt * RANDOMIZER_SHOP_GIFT_CHOICES;
+        enum Item item = PickRandomItem(RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_SHOP_GIFT, slotIndex), TRUE);
+        bool32 duplicate = FALSE;
+
+        // Recursion is bounded and cheap: choiceIndex is at most
+        // RANDOMIZER_SHOP_GIFT_CHOICES - 1, and each earlier choice resolves
+        // deterministically without ever looking forward.
+        for (earlier = 0; earlier < choiceIndex; earlier++)
+        {
+            if (Randomizer_GetShopGift(earlier) == item)
+            {
+                duplicate = TRUE;
+                break;
+            }
+        }
+
+        if (!duplicate)
+            return item;
+    }
+
+    // Every attempt collided, which needs a pathologically thin item pool.
+    // Hand back the plain roll rather than ITEM_NONE so the gift still exists.
+    return PickRandomItem(RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_SHOP_GIFT, choiceIndex), TRUE);
+#else
+    return ITEM_NONE;
+#endif
+}
+
+// Rydel's options are rolled by Randomizer_GetShopGift and shown to the player
+// BY NAME before they pick, so the gift-item randomizer must not roll them a
+// second time and hand over something else entirely. The script sets this
+// immediately before its giveitem; RandomizeGiftItem consumes it.
+//
+// Deliberately set at the giveitem rather than when the choices are rolled: if
+// the player backs out of the menu, nothing was suppressed and the next
+// unrelated gift in the world randomizes normally.
+static bool8 sSuppressGiftRandomization;
+
+void SuppressGiftRandomization(void)
+{
+    sSuppressGiftRandomization = TRUE;
+}
+
+void PrepareBikeShopGift(void)
+{
+    // One var per choice - see the warning on RANDOMIZER_SHOP_GIFT_CHOICES.
+    VarSet(VAR_0x8005, Randomizer_GetShopGift(0));
+    VarSet(VAR_0x8006, Randomizer_GetShopGift(1));
+}
+
 // Gift items have no per-gift flag the way field item balls do, so the slot
 // index is assembled from the things that ARE stable for a given gift: the map
 // it happens on, the object last talked to, and the vanilla item. Two NPCs on
@@ -1662,7 +1739,16 @@ enum Item Randomizer_GetGiftItem(u32 index, enum Item vanillaItem)
 void RandomizeGiftItem(void)
 {
 #if RANDOMIZER_GIFT_ITEMS_ENABLED
-    enum Item vanilla = VarGet(VAR_0x8000);
+    enum Item vanilla;
+
+    // Already-rolled gift (Rydel's) - pass it through untouched, once.
+    if (sSuppressGiftRandomization)
+    {
+        sSuppressGiftRandomization = FALSE;
+        return;
+    }
+
+    vanilla = VarGet(VAR_0x8000);
     u32 index = (u32)vanilla * 2654435761u
               + (u32)gSaveBlock1Ptr->location.mapGroup * 40503u
               + (u32)gSaveBlock1Ptr->location.mapNum * 2246822519u

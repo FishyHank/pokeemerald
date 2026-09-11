@@ -3,6 +3,8 @@
 #include "event_data.h"
 #include "caps.h"
 #include "pokemon.h"
+#include "data.h"
+#include "constants/opponents.h"
 #include "constants/region_map_sections.h"
 #include "constants/map_groups.h"
 
@@ -19,6 +21,64 @@ static const u32 sLevelCapFlagMap[][2] =
     {FLAG_BADGE08_GET, 46},
     {FLAG_IS_CHAMPION, 58},
 };
+
+// Which Gym Leader owns each area tier. Used to place every ordinary trainer in
+// a chapter at the LOW end of that chapter's Leader team, so a chapter reads as
+// "everyone here is about as strong as the Leader's weakest, and the Leader
+// themself tops out on the cap".
+//
+// Derived from the Leader's actual party rather than hardcoded levels, so
+// retuning a Leader retunes their whole chapter with them and the two can never
+// drift apart.
+static const struct { u32 cap; u16 leader; } sAreaLeaders[] =
+{
+    {15, TRAINER_ROXANNE_1},
+    {19, TRAINER_BRAWLY_1},
+    {24, TRAINER_WATTSON_1},
+    {29, TRAINER_FLANNERY_1},
+    {31, TRAINER_NORMAN_1},
+    {33, TRAINER_WINONA_1},
+    {42, TRAINER_TATE_AND_LIZA_1},
+    {46, TRAINER_JUAN_1},
+};
+
+// 0 when no Leader owns the tier - the Elite Four gauntlet (58) and anything
+// off the badge ladder - which leaves those trainers on the class-offset path.
+u32 GetAreaTrainerLevel(u32 areaCap)
+{
+    u32 i;
+
+    for (i = 0; i < ARRAY_COUNT(sAreaLeaders); i++)
+    {
+        const struct Trainer *leader;
+        u32 j, low = MAX_LEVEL, ace = 0;
+
+        if (sAreaLeaders[i].cap != areaCap)
+            continue;
+
+        leader = GetTrainerStructFromId(sAreaLeaders[i].leader);
+
+        for (j = 0; j < leader->partySize; j++)
+        {
+            if (leader->party[j].lvl < low)
+                low = leader->party[j].lvl;
+            if (leader->party[j].lvl > ace)
+                ace = leader->party[j].lvl;
+        }
+
+        if (ace == 0)
+            break;
+
+        // The Leader is themself shifted so their ace lands on the cap, so the
+        // low end has to move by the same amount to stay the same team.
+        if (areaCap >= ace)
+            return low + (areaCap - ace);
+
+        return (low > ace - areaCap) ? low - (ace - areaCap) : 1;
+    }
+
+    return 0;
+}
 
 u32 GetCurrentLevelCap(void)
 {
@@ -145,6 +205,9 @@ static const u16 sAreaTierByMapSec[][2] =
     // Roxanne -> Brawly
     {MAPSEC_ROUTE_116,        19},
     {MAPSEC_RUSTURF_TUNNEL,   19},
+    // Reachable after the first badge and before the second, so it sits in the
+    // Roxanne band despite vanilla tuning it higher.
+    {MAPSEC_ROUTE_115,        19},
     {MAPSEC_DEWFORD_TOWN,     19},
     {MAPSEC_ROUTE_109,        19}, // beach on arrival; surf half guarded below
     {MAPSEC_GRANITE_CAVE,     19}, // no trainers
@@ -153,7 +216,6 @@ static const u16 sAreaTierByMapSec[][2] =
     {MAPSEC_ROUTE_110,        24}, // Trick House prize rooms guarded below
     {MAPSEC_MAUVILLE_CITY,    24},
     {MAPSEC_ROUTE_117,        24},
-    {MAPSEC_ROUTE_115,        24},
     {MAPSEC_NEW_MAUVILLE,     24}, // no trainers; Basement Key comes from Wattson
     // Wattson -> Flannery
     {MAPSEC_ROUTE_111,        29},

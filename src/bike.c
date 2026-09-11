@@ -144,6 +144,48 @@ static enum AcroTransition (*const sAcroBikeInputHandlers[])(enum Direction *, u
 // used with bikeFrameCounter from mach bike
 static const enum PlayerSpeed sMachBikeSpeeds[] = {PLAYER_SPEED_NORMAL, PLAYER_SPEED_FAST, PLAYER_SPEED_FASTEST};
 
+/*
+    Macro Bike ramp.
+
+    The Macro Bike is the Acro bike with the Mach bike's speed ramp bolted on,
+    so one item covers both roles: every Acro trick still works, and riding
+    straight builds up to PLAYER_SPEED_FASTEST, which is what Sky Pillar's
+    cracked floors and the muddy slopes actually test for.
+
+    B is the Acro trick button, so the ramp is suppressed AND reset while B is
+    held - you keep normal Acro speed to line up a hop, and only build speed
+    riding straight. That is what keeps the two systems from fighting over B.
+
+    This needs its own counter: gPlayerAvatar.bikeFrameCounter is a genuine
+    frame counter on the Acro bike (wheelie and hop timing, see
+    AcroBikeHandleInputWheelieStanding), and only doubles as a speed index on
+    the Mach bike. Reusing it here would corrupt the trick timers.
+*/
+#define MACRO_BIKE_RAMP_TILES 2
+
+static u8 sMacroBikeRampTiles;
+
+static void MacroBike_ResetRamp(void)
+{
+    sMacroBikeRampTiles = 0;
+}
+
+// Called once per tile of ordinary (non-trick) Acro movement. TRUE once the
+// ramp is charged, i.e. from the tile after MACRO_BIKE_RAMP_TILES tiles ridden.
+static bool32 MacroBike_TryAdvanceRamp(void)
+{
+    if (JOY_HELD(B_BUTTON))
+    {
+        MacroBike_ResetRamp();
+        return FALSE;
+    }
+
+    if (sMacroBikeRampTiles < MACRO_BIKE_RAMP_TILES)
+        sMacroBikeRampTiles++;
+
+    return sMacroBikeRampTiles >= MACRO_BIKE_RAMP_TILES;
+}
+
 // this is a list of timers to compare against later, terminated with 0. the only timer being compared against is 4 frames in this list.
 static const u8 sAcroBikeJumpTimerList[] = {4, 0};
 
@@ -507,6 +549,13 @@ static void MachBikeTransition_TrySlowDown(enum Direction direction)
 // the acro bike requires the input handler to be executed before the transition can.
 static void MovePlayerOnAcroBike(enum Direction newDirection, u16 newKeys, u16 heldKeys)
 {
+    // B is the trick button, so holding it drops the Macro Bike ramp wherever
+    // we are in the Acro state machine - not just in ordinary movement. Without
+    // this, riding straight to charge the ramp and then holding B to hop would
+    // carry FASTEST into the trick and break cracked floors under it.
+    if (heldKeys & B_BUTTON)
+        MacroBike_ResetRamp();
+
     sAcroBikeTransitions[CheckMovementInputAcroBike(&newDirection, newKeys, heldKeys)](newDirection);
 }
 
@@ -823,6 +872,10 @@ static enum AcroTransition AcroBikeHandleInput_Slope(enum Direction *direction_p
 
 static void AcroBikeTransition_FaceDirection(enum Direction direction)
 {
+    // Standing still spends the ramp, matching how the Mach bike bleeds speed
+    // off the moment you stop - otherwise you could charge it, stop, and still
+    // be at FASTEST on the first tile of the next move.
+    MacroBike_ResetRamp();
     PlayerFaceDirection(direction);
 }
 
@@ -848,6 +901,8 @@ static void AcroBikeTransition_Moving(enum Direction direction)
     collision = GetBikeCollision(direction);
     if (collision > COLLISION_NONE && collision < COLLISION_VERTICAL_RAIL)
     {
+        // Hitting anything kills the ramp, exactly as it does on the Mach bike.
+        MacroBike_ResetRamp();
         if (collision == COLLISION_LEDGE_JUMP)
             PlayerJumpLedge(direction);
         else if (collision == COLLISION_OBJECT_EVENT && IsPlayerCollidingWithFarawayIslandMew(direction))
@@ -855,12 +910,19 @@ static void AcroBikeTransition_Moving(enum Direction direction)
         else if (collision < COLLISION_STOP_SURFING || collision > COLLISION_ROTATING_GATE)
             PlayerOnBikeCollide(direction);
     }
+    else if (ObjectMovingOnRockStairs(playerObjEvent, direction))
+    {
+        // Stairs force their own pace, so don't let them charge the ramp.
+        MacroBike_ResetRamp();
+        PlayerWalkFast(direction);
+    }
+    else if (MacroBike_TryAdvanceRamp())
+    {
+        PlayerWalkFaster(direction);
+    }
     else
     {
-        if (ObjectMovingOnRockStairs(playerObjEvent, direction))
-            PlayerWalkFast(direction);
-        else
-            PlayerRideWaterCurrent(direction);
+        PlayerRideWaterCurrent(direction);
     }
 }
 
@@ -1306,6 +1368,9 @@ void BikeClearState(int newDirHistory, int newAbStartHistory)
 {
     u8 i;
 
+    // Mounting, dismounting and switching bike type all land here, so the ramp
+    // can never carry a charge across them.
+    MacroBike_ResetRamp();
     gPlayerAvatar.acroBikeState = ACRO_STATE_NORMAL;
     gPlayerAvatar.newDirBackup = DIR_NONE;
     gPlayerAvatar.bikeFrameCounter = 0;
@@ -1343,7 +1408,10 @@ enum PlayerSpeed GetPlayerSpeed(void)
     if (gPlayerAvatar.flags & PLAYER_AVATAR_FLAG_MACH_BIKE)
         return machSpeeds[gPlayerAvatar.bikeFrameCounter];
     else if (gPlayerAvatar.flags & PLAYER_AVATAR_FLAG_ACRO_BIKE)
-        return PLAYER_SPEED_FASTER;
+        // Macro Bike: a charged ramp reports FASTEST, which is what the muddy
+        // slopes and Sky Pillar's cracked floors gate on. Uncharged - and so
+        // any time B is held for a trick - this is the stock Acro speed.
+        return (sMacroBikeRampTiles >= MACRO_BIKE_RAMP_TILES) ? PLAYER_SPEED_FASTEST : PLAYER_SPEED_FASTER;
     else if (gPlayerAvatar.flags & (PLAYER_AVATAR_FLAG_SURFING | PLAYER_AVATAR_FLAG_DASH))
         return PLAYER_SPEED_FAST;
     else

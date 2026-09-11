@@ -22,6 +22,7 @@ enum RandomizerSlotDomain
     // save's single TM shuffle. See Randomizer_GetFieldItem.
     RANDOMIZER_DOMAIN_TM_ORDER    = 10,
     RANDOMIZER_DOMAIN_STATIC_ENCOUNTER = 11,
+    RANDOMIZER_DOMAIN_SHOP_GIFT        = 12,
 };
 
 #define RANDOMIZER_SLOT_ID(domain, index) (((u32)(domain) << 24) | ((u32)(index) & 0xFFFFFF))
@@ -128,9 +129,21 @@ enum Item Randomizer_GetHiddenItem(u32 flagId, enum Item vanillaItem);
 // something that would soft-lock the game.
 enum Item Randomizer_GetGiftItem(u32 index, enum Item vanillaItem);
 
+// One of Rydel's rolled gift options, 0 .. RANDOMIZER_SHOP_GIFT_CHOICES - 1.
+// Deterministic per seed, and deduplicated against the earlier choices so the
+// player is never offered the same item twice.
+enum Item Randomizer_GetShopGift(u32 choiceIndex);
+
 // callnative target at the top of Std_ObtainItem (data/scripts/obtain_item.inc).
 // Rewrites VAR_0x8000 in place so the item added to the bag and the message
 // describing it stay in agreement.
 void RandomizeGiftItem(void);
+
+// callnative targets for the Mauville bike shop script. PrepareBikeShopGift
+// rolls the choices into VAR_0x8005.. so the script can name them with
+// bufferitemname; SuppressGiftRandomization stops RandomizeGiftItem re-rolling
+// the picked one when the script hands it over with giveitem.
+void PrepareBikeShopGift(void);
+void SuppressGiftRandomization(void);
 
 #endif // GUARD_RANDOMIZER_H

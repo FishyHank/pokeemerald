@@ -215,7 +215,7 @@ static void Quickstart_GrantTestUnlocks(void)
     FlagSet(FLAG_RECEIVED_RUNNING_SHOES);
     FlagSet(FLAG_SYS_B_DASH);
     FlagSet(FLAG_RECEIVED_BIKE);
-    AddBagItem(ITEM_ACRO_BIKE, 1);
+    AddBagItem(ITEM_BICYCLE, 1);   // Macro Bike - the one bike, see src/bike.c
 }
 #endif // QUICKSTART_TEST_UNLOCKS
 

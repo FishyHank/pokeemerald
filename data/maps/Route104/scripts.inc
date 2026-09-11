@@ -975,15 +975,23 @@ Route104_EventScript_RematchCindy::
 	msgbox Route104_Text_CindyPostRematch, MSGBOX_AUTOCLOSE
 	end
 
+@ Double battle disabled to match the reference ROM: a Nuzlocke can easily
+@ be down to one usable Pokemon here, and a forced double is a dead end
+@ rather than a fight. They keep their post-battle chatter as flavour.
 Route104_EventScript_Gina::
-	trainerbattle_double TRAINER_GINA_AND_MIA_1, Route104_Text_GinaIntro, Route104_Text_GinaDefeat, Route104_Text_GinaNotEnoughMons
+	lock
+	faceplayer
 	special GetPlayerBigGuyGirlString
 	msgbox Route104_Text_GinaPostBattle, MSGBOX_DEFAULT
 	release
 	end
 
+@ Double battle disabled to match the reference ROM: a Nuzlocke can easily
+@ be down to one usable Pokemon here, and a forced double is a dead end
+@ rather than a fight. They keep their post-battle chatter as flavour.
 Route104_EventScript_Mia::
-	trainerbattle_double TRAINER_GINA_AND_MIA_1, Route104_Text_MiaIntro, Route104_Text_MiaDefeat, Route104_Text_MiaNotEnoughMons
+	lock
+	faceplayer
 	special GetPlayerBigGuyGirlString
 	msgbox Route104_Text_MiaPostBattle, MSGBOX_DEFAULT
 	release

@@ -52,8 +52,8 @@
 #else
 
 #define FLAG_INFINITE_REPEL_ACTIVE 0x20 // Toggle state of the ITEM_INFINITE_REPEL key item (repurposed from FLAG_UNUSED_0x020)
-#define FLAG_UNUSED_0x021    0x21 // Unused Flag
-#define FLAG_UNUSED_0x022    0x22 // Unused Flag
+#define FLAG_RECEIVED_BIKE_SHOP_GIFT 0x21 // Rydel's one-time gift has been taken (repurposed from FLAG_UNUSED_0x021)
+#define FLAG_HIDE_GRANITE_CAVE_BLOCKING_ROCKS 0x22 // Progression gate on Granite Cave 1F; set it to open the cave (repurposed from FLAG_UNUSED_0x022)
 #define FLAG_UNUSED_0x023    0x23 // Unused Flag
 #define FLAG_UNUSED_0x024    0x24 // Unused Flag
 #define FLAG_UNUSED_0x025    0x25 // Unused Flag

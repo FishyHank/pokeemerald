@@ -13868,17 +13868,21 @@ const struct ItemInfo gItemsInfo[] =
 
     [ITEM_BICYCLE] =
     {
-        .name = ITEM_NAME("Bike"),
+        .name = ITEM_NAME("Macro Bike"),
         .price = 0,
         .description = COMPOUND_STRING(
-            "A folding bicycle\n"
-            "that is faster than\n"
-            "the Running Shoes."),
+            "Mach and Acro in\n"
+            "one frame. Hold B\n"
+            "for bike tricks."),
         .importance = 1,
         .pocket = POCKET_KEY_ITEMS,
         .type = ITEM_USE_FIELD,
         .fieldUseFunc = ItemUseOutOfBattle_Bike,
-        .secondaryId = STANDARD_BIKE,
+        // Acro, not STANDARD_BIKE: STANDARD sets both avatar flags and runs a
+        // cut-down control scheme with no hop, which would make bike rails
+        // impassable. The Mach half is instead the speed ramp added to the Acro
+        // bike in src/bike.c - see MACRO_BIKE_RAMP_TILES.
+        .secondaryId = ACRO_BIKE,
         .iconPic = gItemIcon_Bicycle,
         .iconPalette = gItemIconPalette_Bicycle,
     },

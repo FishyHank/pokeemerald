@@ -41,4 +41,8 @@ u32 GetAreaLevelCapForVanillaLevel(u32 level);
 u32 GetAreaLevelCapForMapSec(u32 mapSec);
 u32 GetCurrentAreaLevelCap(void);
 
+// The level ordinary route and Gym trainers sit at in an area: the LOW end of
+// that area's Gym Leader's team. 0 if no Leader owns the tier.
+u32 GetAreaTrainerLevel(u32 areaCap);
+
 #endif /* GUARD_CAPS_H */

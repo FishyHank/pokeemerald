@@ -236,6 +236,26 @@ void NewGameInitData(void)
     // travel row in src/start_menu.c - so a key item is the only way to reach
     // the PC from the field.
     AddBagItem(ITEM_POKEMON_BOX_LINK, 1);
+    // Macro Bike - the one bike, Mach and Acro in a single frame (see
+    // MACRO_BIKE_RAMP_TILES in src/bike.c). Rydel no longer hands a bike out,
+    // and FLAG_RECEIVED_BIKE is set so his script never offers one.
+    //
+    // Granted here rather than by Mom's script even though her dialogue is what
+    // explains it: Quickstart_SkipIntroToRoute101 skips the entire Littleroot
+    // intro, so anything given by that scene would be missing on a Quickstart
+    // save. Same reasoning as the key items above - the scene narrates, this
+    // grants.
+    AddBagItem(ITEM_BICYCLE, 1);
+    FlagSet(FLAG_RECEIVED_BIKE);
+    // Starting balls, for the same reason. A Nuzlocke's first encounter can
+    // come before the player has any money, so these cannot wait for a shop.
+    // Counts match the reference Invitational ROM - see the ruleset memo.
+    AddBagItem(ITEM_POKE_BALL, 50);
+    AddBagItem(ITEM_GREAT_BALL, 10);
+    // Money, not an item: the run is not supposed to be gated on cash, so the
+    // player starts with a stack to sell rather than with a balance. Matches
+    // the reference ROM, which does the same thing.
+    AddBagItem(ITEM_NUGGET, 999);
     NewGameInitPCItems();
     ClearPokeblocks();
     ClearDecorationInventories();

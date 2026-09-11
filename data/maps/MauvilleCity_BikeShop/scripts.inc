@@ -4,96 +4,63 @@ MauvilleCity_BikeShop_MapScripts::
 MauvilleCity_BikeShop_EventScript_Rydel::
 	lock
 	faceplayer
-	goto_if_set FLAG_RECEIVED_BIKE, MauvilleCity_BikeShop_EventScript_AskSwitchBikes
-	goto_if_set FLAG_DECLINED_BIKE, MauvilleCity_BikeShop_EventScript_SkipGreeting
-	msgbox MauvilleCity_BikeShop_Text_RydelGreeting, MSGBOX_DEFAULT
-	msgbox MauvilleCity_BikeShop_Text_DidYouComeFromFarAway, MSGBOX_YESNO
-	goto_if_eq VAR_RESULT, YES, MauvilleCity_BikeShop_EventScript_YesFar
-	goto_if_eq VAR_RESULT, NO, MauvilleCity_BikeShop_EventScript_NotFar
+	goto_if_set FLAG_RECEIVED_BIKE_SHOP_GIFT, MauvilleCity_BikeShop_EventScript_RydelAlreadyGifted
+	msgbox MauvilleCity_BikeShop_Text_RydelGiftOffer, MSGBOX_DEFAULT
+	goto MauvilleCity_BikeShop_EventScript_OfferGift
 	end
 
-MauvilleCity_BikeShop_EventScript_SkipGreeting::
-	msgbox MauvilleCity_BikeShop_Text_DidYouComeFromFarAway, MSGBOX_YESNO
-	goto_if_eq VAR_RESULT, YES, MauvilleCity_BikeShop_EventScript_YesFar
-	goto_if_eq VAR_RESULT, NO, MauvilleCity_BikeShop_EventScript_NotFar
-	end
-
-MauvilleCity_BikeShop_EventScript_ChooseBike::
-	message MauvilleCity_BikeShop_Text_ExplainBikesChooseWhichOne
-	waitmessage
-	multichoice 21, 8, MULTI_BIKE, TRUE
+@ Rydel no longer sells or swaps BIKES - Mom hands out the one MACRO BIKE at the
+@ start of the run - so the shop is a single one-time gift instead. The options
+@ are rolled per save by Randomizer_GetShopGift and shown BY NAME, which is what
+@ makes the pick informed: with randomized TM moves the number means nothing,
+@ but I_TM_NAMES_SHOW_MOVE puts the real move in the item name.
+MauvilleCity_BikeShop_EventScript_OfferGift::
+	callnative PrepareBikeShopGift
+	bufferitemname STR_VAR_1, VAR_0x8005
+	bufferitemname STR_VAR_2, VAR_0x8006
+	msgbox MauvilleCity_BikeShop_Text_RydelWhichOne, MSGBOX_DEFAULT
+	dynmultipush MauvilleCity_BikeShop_Text_ShopGiftOption1, 0
+	dynmultipush MauvilleCity_BikeShop_Text_ShopGiftOption2, 1
+	dynmultistack 0, 0, FALSE, 2, FALSE, 0, DYN_MULTICHOICE_CB_NONE
 	switch VAR_RESULT
-	case 0, MauvilleCity_BikeShop_EventScript_GetMachBike
-	case 1, MauvilleCity_BikeShop_EventScript_GetAcroBike
+	case 0, MauvilleCity_BikeShop_EventScript_TakeGift1
+	case 1, MauvilleCity_BikeShop_EventScript_TakeGift2
+	case MULTI_B_PRESSED, MauvilleCity_BikeShop_EventScript_DeclineGift
 	end
 
-MauvilleCity_BikeShop_EventScript_NotFar::
-	setflag FLAG_DECLINED_BIKE
-	msgbox MauvilleCity_BikeShop_Text_GuessYouDontNeedBike, MSGBOX_DEFAULT
-	release
-	end
-
-MauvilleCity_BikeShop_EventScript_YesFar::
-	setflag FLAG_RECEIVED_BIKE
-	goto MauvilleCity_BikeShop_EventScript_ChooseBike
-	end
-
-MauvilleCity_BikeShop_EventScript_GetMachBike::
-	msgbox MauvilleCity_BikeShop_Text_ChoseMachBike, MSGBOX_DEFAULT
-	giveitem ITEM_MACH_BIKE
+@ SuppressGiftRandomization must sit immediately before each giveitem: the
+@ giveitem macro routes through Std_ObtainItem, which calls RandomizeGiftItem
+@ and would otherwise re-roll the item the player just chose by name.
+MauvilleCity_BikeShop_EventScript_TakeGift1::
+	callnative SuppressGiftRandomization
+	giveitem VAR_0x8005
 	goto_if_eq VAR_RESULT, FALSE, Common_EventScript_ShowBagIsFull
-	goto MauvilleCity_BikeShop_EventScript_ComeBackToSwitchBikes
+	goto MauvilleCity_BikeShop_EventScript_GiftTaken
 	end
 
-MauvilleCity_BikeShop_EventScript_GetAcroBike::
-	msgbox MauvilleCity_BikeShop_Text_ChoseAcroBike, MSGBOX_DEFAULT
-	giveitem ITEM_ACRO_BIKE
+MauvilleCity_BikeShop_EventScript_TakeGift2::
+	callnative SuppressGiftRandomization
+	giveitem VAR_0x8006
 	goto_if_eq VAR_RESULT, FALSE, Common_EventScript_ShowBagIsFull
-	goto MauvilleCity_BikeShop_EventScript_ComeBackToSwitchBikes
+	goto MauvilleCity_BikeShop_EventScript_GiftTaken
 	end
 
-MauvilleCity_BikeShop_EventScript_ComeBackToSwitchBikes::
-	msgbox MauvilleCity_BikeShop_Text_ComeBackToSwitchBikes, MSGBOX_DEFAULT
-	special SwapRegisteredBike
+MauvilleCity_BikeShop_EventScript_GiftTaken::
+	setflag FLAG_RECEIVED_BIKE_SHOP_GIFT
+	msgbox MauvilleCity_BikeShop_Text_RydelEnjoyGift, MSGBOX_DEFAULT
 	release
 	end
 
-MauvilleCity_BikeShop_EventScript_AskSwitchBikes::
-	msgbox MauvilleCity_BikeShop_Text_WantToSwitchBikes, MSGBOX_YESNO
-	goto_if_eq VAR_RESULT, YES, MauvilleCity_BikeShop_EventScript_SwitchBikes
-	goto_if_eq VAR_RESULT, NO, MauvilleCity_BikeShop_EventScript_KeepBike
-	end
-
-@ If the player does not have a bike on them Rydel assumes its stored in the PC
-MauvilleCity_BikeShop_EventScript_SwitchBikes::
-	msgbox MauvilleCity_BikeShop_Text_IllSwitchBikes, MSGBOX_DEFAULT
-	checkitem ITEM_ACRO_BIKE
-	goto_if_eq VAR_RESULT, TRUE, MauvilleCity_BikeShop_EventScript_SwitchAcroForMach
-	checkitem ITEM_MACH_BIKE
-	goto_if_eq VAR_RESULT, TRUE, MauvilleCity_BikeShop_EventScript_SwitchMachForAcro
-	msgbox MauvilleCity_BikeShop_Text_OhYourBikeIsInPC, MSGBOX_DEFAULT
+@ The flag is NOT set here, so backing out leaves the gift available. The same
+@ two options come back, because the roll is seeded, not drawn fresh.
+MauvilleCity_BikeShop_EventScript_DeclineGift::
+	msgbox MauvilleCity_BikeShop_Text_RydelComeBackLater, MSGBOX_DEFAULT
 	release
 	end
 
-MauvilleCity_BikeShop_EventScript_KeepBike::
-	msgbox MauvilleCity_BikeShop_Text_HappyYouLikeIt, MSGBOX_DEFAULT
+MauvilleCity_BikeShop_EventScript_RydelAlreadyGifted::
+	msgbox MauvilleCity_BikeShop_Text_RydelAlreadyGifted, MSGBOX_DEFAULT
 	release
-	end
-
-MauvilleCity_BikeShop_EventScript_SwitchAcroForMach::
-	incrementgamestat GAME_STAT_TRADED_BIKES
-	msgbox MauvilleCity_BikeShop_Text_ExchangedAcroForMach, MSGBOX_DEFAULT
-	removeitem ITEM_ACRO_BIKE
-	giveitem ITEM_MACH_BIKE
-	goto MauvilleCity_BikeShop_EventScript_ComeBackToSwitchBikes
-	end
-
-MauvilleCity_BikeShop_EventScript_SwitchMachForAcro::
-	incrementgamestat GAME_STAT_TRADED_BIKES
-	msgbox MauvilleCity_BikeShop_Text_ExchangedMachForAcro, MSGBOX_DEFAULT
-	removeitem ITEM_MACH_BIKE
-	giveitem ITEM_ACRO_BIKE
-	goto MauvilleCity_BikeShop_EventScript_ComeBackToSwitchBikes
 	end
 
 MauvilleCity_BikeShop_EventScript_Assistant::
@@ -176,6 +143,46 @@ MauvilleCity_BikeShop_EventScript_ExitAcroHandbook::
 	release
 	end
 
+MauvilleCity_BikeShop_Text_RydelGiftOffer:
+	.string "Well, well, what have we here?\n"
+	.string "A most energetic customer!\p"
+	.string "Me? You may call me RYDEL.\n"
+	.string "I used to run this cycle shop.\p"
+	.string "Used to! Everyone rolls in on a MACRO\n"
+	.string "BIKE these days, so I've gone and\l"
+	.string "taken up collecting instead.\p"
+	.string "Tell you what. Pick something out of\n"
+	.string "my collection. On the house!$"
+
+MauvilleCity_BikeShop_Text_RydelWhichOne:
+	.string "RYDEL: Let's see here…\p"
+	.string "I can spare the {STR_VAR_1}\n"
+	.string "or the {STR_VAR_2}.\p"
+	.string "Take your pick! Just the one, mind.$"
+
+MauvilleCity_BikeShop_Text_ShopGiftOption1:
+	.string "{STR_VAR_1}$"
+
+MauvilleCity_BikeShop_Text_ShopGiftOption2:
+	.string "{STR_VAR_2}$"
+
+MauvilleCity_BikeShop_Text_RydelEnjoyGift:
+	.string "RYDEL: Good eye!\n"
+	.string "Put it to work out there.\p"
+	.string "May the wind always be at your back\n"
+	.string "on your adventure!$"
+
+MauvilleCity_BikeShop_Text_RydelComeBackLater:
+	.string "RYDEL: No rush at all.\n"
+	.string "They'll still be here when you\l"
+	.string "make up your mind!$"
+
+MauvilleCity_BikeShop_Text_RydelAlreadyGifted:
+	.string "RYDEL: How's that MACRO BIKE\n"
+	.string "treating you?\p"
+	.string "A MACH and an ACRO in one frame…\n"
+	.string "Finest thing I ever built!$"
+
 MauvilleCity_BikeShop_Text_RydelGreeting:
 	.string "Well, well, what have we here?\n"
 	.string "A most energetic customer!\p"
@@ -221,6 +228,27 @@ MauvilleCity_BikeShop_Text_ChoseMachBike:
 
 MauvilleCity_BikeShop_Text_ChoseAcroBike:
 	.string "{PLAYER} chose the ACRO BIKE.$"
+
+MauvilleCity_BikeShop_Text_ExplainMacroBike:
+	.string "RYDEL: Hm, hm… … … … …\p"
+	.string "You're saying that you came all this\n"
+	.string "way from LITTLEROOT?\p"
+	.string "My goodness!\n"
+	.string "That's ridiculously far!\p"
+	.string "If you had one of my BIKES, you could\n"
+	.string "go anywhere easily while feeling the\l"
+	.string "gentle caress of the wind!\p"
+	.string "I'll tell you what!\n"
+	.string "I'll give you my finest BIKE!\p"
+	.string "I used to build two, a MACH and an\n"
+	.string "ACRO. Then I built both into one.\p"
+	.string "I call it the MACRO BIKE!$"
+
+MauvilleCity_BikeShop_Text_EnjoyTheMacroBike:
+	.string "RYDEL: That one's MACH and ACRO in\n"
+	.string "a single frame!\p"
+	.string "Ride straight and it picks up speed.\n"
+	.string "Hold the B Button for BIKE tricks!$"
 
 MauvilleCity_BikeShop_Text_ComeBackToSwitchBikes:
 	.string "RYDEL: If you get the urge to switch\n"

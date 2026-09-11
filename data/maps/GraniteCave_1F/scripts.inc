@@ -1,3 +1,20 @@
+@ Progression gate: the cave is blocked past its entrance so it yields its
+@ encounter and nothing else. Costs no encounter slot - the whole cave is a
+@ single MAPSEC_GRANITE_CAVE row in gEncounterZones.
+@
+@ Placed on the two ladders down to B1F. Steven's Room is deliberately NOT
+@ blocked, so delivering the Letter still works.
+@
+@ Behind FLAG_HIDE_GRANITE_CAVE_BLOCKING_ROCKS so the cave can be opened later
+@ with a single setflag.
+GraniteCave_1F_EventScript_BlockingRock::
+	msgbox GraniteCave_1F_Text_BlockingRock, MSGBOX_SIGN
+	end
+
+GraniteCave_1F_Text_BlockingRock:
+	.string "A rockfall blocks the way down.\p"
+	.string "It won't budge.$"
+
 GraniteCave_1F_MapScripts::
 	.byte 0
 

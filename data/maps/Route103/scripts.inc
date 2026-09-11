@@ -145,6 +145,17 @@ Route103_EventScript_RivalEnd::
 	clearflag FLAG_HIDE_OLDALE_TOWN_RIVAL
 	savebgm MUS_DUMMY
 	fadedefaultbgm
+	@ QoL: skip the walk back from Route 103, the same way the Birch rescue on
+	@ Route 101 warps straight into the lab instead of making you walk.
+	@
+	@ The DOOR (6, 12), not (6, 5) like Route 101 uses. Route 101 lands you in
+	@ front of Birch because the starter scene starts with you already inside;
+	@ the Pokedex scene this triggers is the other shape - its ON_FRAME script
+	@ (VAR_BIRCH_LAB_STATE 4) opens with seven walk_up steps that carry you from
+	@ the door to exactly (6, 5). Warping to (6, 5) would walk you seven tiles
+	@ further, into the back wall.
+	warp MAP_LITTLEROOT_TOWN_PROFESSOR_BIRCHS_LAB, 6, 12
+	waitstate
 	releaseall
 	end
 
