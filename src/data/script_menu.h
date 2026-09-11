@@ -273,11 +273,13 @@ static const struct MenuAction MultichoiceList_GameCornerDolls[] =
 
 static const struct MenuAction MultichoiceList_GameCornerTMs[] =
 {
-    {COMPOUND_STRING("TM32{CLEAR_TO 72}1,500 COINS")},
-    {COMPOUND_STRING("TM29{CLEAR_TO 72}3,500 COINS")},
-    {COMPOUND_STRING("TM35{CLEAR_TO 72}4,000 COINS")},
-    {COMPOUND_STRING("TM24{CLEAR_TO 72}4,000 COINS")},
-    {COMPOUND_STRING("TM13{CLEAR_TO 72}4,000 COINS")},
+    // Prices must match the TM_*_COINS constants in the Game Corner script -
+    // these are plain text and cannot read them.
+    {COMPOUND_STRING("TM32{CLEAR_TO 72}1 COIN")},
+    {COMPOUND_STRING("TM29{CLEAR_TO 72}1 COIN")},
+    {COMPOUND_STRING("TM35{CLEAR_TO 72}1 COIN")},
+    {COMPOUND_STRING("TM24{CLEAR_TO 72}1 COIN")},
+    {COMPOUND_STRING("TM13{CLEAR_TO 72}1 COIN")},
     {gText_Exit},
 };
 

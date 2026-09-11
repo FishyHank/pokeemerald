@@ -2,11 +2,16 @@ MauvilleCity_GameCorner_MapScripts::
 	.byte 0
 
 	@ Game Corner prices
-	.set TM_DOUBLE_TEAM_COINS, 1500
-	.set TM_PSYCHIC_COINS, 3500
-	.set TM_FLAMETHROWER_COINS, 4000
-	.set TM_THUNDERBOLT_COINS, 4000
-	.set TM_ICE_BEAM_COINS, 4000
+	@ 1 coin each, matching the reference ROM. The prize TMs are effectively
+	@ free: with randomized TM moves the coin cost was gating a lottery ticket,
+	@ not a chosen reward. Keep these in step with the labels in
+	@ MultichoiceList_GameCornerTMs (src/data/script_menu.h), which spell the
+	@ price out in text and cannot read these constants.
+	.set TM_DOUBLE_TEAM_COINS, 1
+	.set TM_PSYCHIC_COINS, 1
+	.set TM_FLAMETHROWER_COINS, 1
+	.set TM_THUNDERBOLT_COINS, 1
+	.set TM_ICE_BEAM_COINS, 1
 	.set DOLL_COINS, 1000
 
 	.set COINS_PRICE_50,  1000
@@ -222,19 +227,39 @@ MauvilleCity_GameCorner_EventScript_PrizeCornerTMs::
 	end
 
 MauvilleCity_GameCorner_EventScript_ChooseTMPrizeMessage::
-	message MauvilleCity_GameCorner_Text_WhichPrize
+	message MauvilleCity_GameCorner_Text_WhichTMPrize
 	waitmessage
 	setvar VAR_TEMP_1, 0
 	showcoinsbox 1, 1
 	goto MauvilleCity_GameCorner_EventScript_ChooseTMPrize
 
 MauvilleCity_GameCorner_EventScript_ReturnToChooseTMPrize::
-	message MauvilleCity_GameCorner_Text_WhichPrize
+	message MauvilleCity_GameCorner_Text_WhichTMPrize
 	waitmessage
 	goto MauvilleCity_GameCorner_EventScript_ChooseTMPrize
 
+@ Built row by row instead of using the static MULTI_GAME_CORNER_TMS list, so
+@ each row shows the TM's REAL move. With RANDOMIZER_TM_MOVES_ENABLED the TM
+@ number says nothing about its contents, and I_TM_NAMES_SHOW_MOVE already puts
+@ the move into the item name ("TM32 - Dragon Claw") - so bufferitemname gives
+@ number and move together and the player can pick knowing what they get.
+@
+@ STR_VAR_1 is reused for every row on purpose: ScrCmd_dynmultipush expands
+@ placeholders into its own buffer as it pushes, so the row is already resolved
+@ before the next bufferitemname overwrites the variable.
 MauvilleCity_GameCorner_EventScript_ChooseTMPrize::
-	multichoice 12, 0, MULTI_GAME_CORNER_TMS, FALSE
+	bufferitemname STR_VAR_1, ITEM_TM_DOUBLE_TEAM
+	dynmultipush MauvilleCity_GameCorner_Text_TMPrizeRow, 0
+	bufferitemname STR_VAR_1, ITEM_TM_PSYCHIC
+	dynmultipush MauvilleCity_GameCorner_Text_TMPrizeRow, 1
+	bufferitemname STR_VAR_1, ITEM_TM_FLAMETHROWER
+	dynmultipush MauvilleCity_GameCorner_Text_TMPrizeRow, 2
+	bufferitemname STR_VAR_1, ITEM_TM_THUNDERBOLT
+	dynmultipush MauvilleCity_GameCorner_Text_TMPrizeRow, 3
+	bufferitemname STR_VAR_1, ITEM_TM_ICE_BEAM
+	dynmultipush MauvilleCity_GameCorner_Text_TMPrizeRow, 4
+	dynmultipush MauvilleCity_GameCorner_Text_TMPrizeExit, 5
+	dynmultistack 0, 0, FALSE, 6, FALSE, 0, DYN_MULTICHOICE_CB_NONE
 	switch VAR_RESULT
 	case 0, MauvilleCity_GameCorner_EventScript_TMDoubleTeam
 	case 1, MauvilleCity_GameCorner_EventScript_TMPsychic
@@ -660,6 +685,16 @@ MauvilleCity_GameCorner_Text_ExchangeCoinsForPrizes:
 	.string "Welcome.\p"
 	.string "You can exchange your COINS for\n"
 	.string "prizes here.$"
+
+MauvilleCity_GameCorner_Text_WhichTMPrize:
+	.string "Every TM is 1 COIN.\n"
+	.string "Which one would you like?$"
+
+MauvilleCity_GameCorner_Text_TMPrizeRow:
+	.string "{STR_VAR_1}$"
+
+MauvilleCity_GameCorner_Text_TMPrizeExit:
+	.string "EXIT$"
 
 MauvilleCity_GameCorner_Text_WhichPrize:
 	.string "Which prize would you like?$"

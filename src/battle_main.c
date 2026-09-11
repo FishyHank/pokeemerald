@@ -1879,6 +1879,22 @@ void CustomTrainerPartyAssignMoves(struct Pokemon *mon, const struct TrainerMon 
 // Gym trainers cannot be told apart from route trainers by class - a Gym
 // Youngster is the same TRAINER_CLASS_YOUNGSTER as a route one - which is
 // exactly why they share a band here rather than getting one of their own.
+// A single fight that is deliberately tuned ABOVE its area's cap, as a wall
+// rather than as part of the chapter's ramp.
+//
+// Matched by struct pointer, not by class: Wally is TRAINER_CLASS_RIVAL, which
+// he shares with May/Brendan and with every one of his own Victory Road
+// rematches, so a class check would spike all of them. struct Trainer carries
+// no id field, which is why this compares the pointer the table handed out.
+//
+// CAVEAT: the override path in CreateNPCTrainerParty builds a stack copy, so a
+// trainer given an overrideTrainer would stop matching here. None of the spike
+// trainers use one today; if one ever does, this needs the id plumbed through.
+static bool32 IsLevelSpikeTrainer(const struct Trainer *trainer)
+{
+    return trainer == GetTrainerStructFromId(TRAINER_WALLY_MAUVILLE);
+}
+
 static bool32 UsesAreaTrainerLevel(u32 trainerClass)
 {
     switch (trainerClass)
@@ -2007,7 +2023,13 @@ u8 CreateNPCTrainerPartyFromTrainer(struct Pokemon *party, const struct Trainer 
                 u32 areaTrainerLevel = GetAreaTrainerLevel(areaCap);
                 u32 target;
 
-                if (areaTrainerLevel != 0 && UsesAreaTrainerLevel(trainer->trainerClass))
+                if (IsLevelSpikeTrainer(trainer))
+                {
+                    // Above the cap on purpose - this one is supposed to stop
+                    // you, and the player cannot simply out-level it.
+                    target = areaCap + B_SPIKE_LEVEL_CAP_BONUS;
+                }
+                else if (areaTrainerLevel != 0 && UsesAreaTrainerLevel(trainer->trainerClass))
                 {
                     target = areaTrainerLevel;
                 }

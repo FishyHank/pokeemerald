@@ -376,6 +376,7 @@
 #define B_VETERAN_LEVEL_CAP_OFFSET      3          // tougher classes (Cooltrainer, Expert, Psychic, Ranger...)
 #define B_NOTABLE_LEVEL_CAP_OFFSET      2          // Rivals, Team Aqua/Magma Admins and Leaders
 #define B_LEADER_LEVEL_CAP_OFFSET       0          // Gym Leaders land exactly ON it
+#define B_SPIKE_LEVEL_CAP_BONUS         3          // Designated spike fights land ABOVE the cap by this much. See IsLevelSpikeTrainer in src/battle_main.c - currently just Wally outside Mauville Gym, who is meant to be a wall rather than another rival fight.
 #define B_LEGENDARY_MIN_CATCH_RATE      45         // Floor applied to the catch rate of legendary/mythical/Ultra Beast species (0 disables). Vanilla puts 123 of them at 3, the minimum on the scale, which is ~10 Ultra Balls even at 1 HP and asleep - brutal in a Nuzlocke where a legendary is a one-shot encounter. 45 keeps them hard to catch fresh (~21% per Ultra Ball at full HP) but reliable once properly weakened and statused.
 #define B_CRITICAL_CAPTURE              TRUE       // If set to TRUE, Critical Capture will be enabled.
 #define B_CRITICAL_CAPTURE_LOCAL_DEX    TRUE       // If set to FALSE, Critical Capture % is based off of the National Pokedex estimated by enabled generations.
