@@ -152,9 +152,13 @@
 #define RANDOMIZER_EXCLUDE_REDUNDANT_ITEMS   TRUE
 
 // How many of the visible item balls are guaranteed to contain a TM, out of
-// FIELD_ITEM_SLOT_COUNT (156) total. They are 50 *distinct* TMs drawn from the
-// 58 in the game, so exactly 8 TMs are absent from any given seed and "collect
-// all 50" is a goal a player can actually track. Must be <= 58.
+// FIELD_ITEM_SLOT_COUNT (170) total. They are 50 *distinct* TMs, and the real
+// TM pool is exactly 50 (ITEM_TM51..ITEM_TM58 are placeholders that teach
+// nothing - see IsPlaceholderTM), so every seed contains all 50. The variety is
+// in what they teach, not in which exist. Must be <= NUM_TECHNICAL_MACHINES.
+//
+// Ordinary balls may roll TMs too, so a seed also holds extra duplicate copies
+// beyond these 50. Deliberate.
 #define RANDOMIZER_GUARANTEED_TM_COUNT       50
 
 // Rydel's one-time gift. He no longer sells or swaps bikes - the Macro Bike is

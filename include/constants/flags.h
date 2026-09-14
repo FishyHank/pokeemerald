@@ -1222,20 +1222,20 @@
 #define FLAG_ITEM_SAFARI_ZONE_NORTH_EAST_NUGGET                     0x491
 #define FLAG_ITEM_SAFARI_ZONE_SOUTH_EAST_BIG_PEARL                  0x492
 
-#define FLAG_UNUSED_0x493                                           0x493 // Unused Flag
-#define FLAG_UNUSED_0x494                                           0x494 // Unused Flag
-#define FLAG_UNUSED_0x495                                           0x495 // Unused Flag
-#define FLAG_UNUSED_0x496                                           0x496 // Unused Flag
-#define FLAG_UNUSED_0x497                                           0x497 // Unused Flag
-#define FLAG_UNUSED_0x498                                           0x498 // Unused Flag
-#define FLAG_UNUSED_0x499                                           0x499 // Unused Flag
-#define FLAG_UNUSED_0x49A                                           0x49A // Unused Flag
-#define FLAG_UNUSED_0x49B                                           0x49B // Unused Flag
-#define FLAG_UNUSED_0x49C                                           0x49C // Unused Flag
-#define FLAG_UNUSED_0x49D                                           0x49D // Unused Flag
-#define FLAG_UNUSED_0x49E                                           0x49E // Unused Flag
-#define FLAG_UNUSED_0x49F                                           0x49F // Unused Flag
-#define FLAG_UNUSED_0x4A0                                           0x4A0 // Unused Flag
+#define FLAG_ITEM_ROUTE_102_EXTRA_1                                0x493 // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x493
+#define FLAG_ITEM_ROUTE_102_EXTRA_2                                0x494 // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x494
+#define FLAG_ITEM_ROUTE_104_EXTRA_1                                0x495 // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x495
+#define FLAG_ITEM_ROUTE_104_EXTRA_2                                0x496 // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x496
+#define FLAG_ITEM_ROUTE_104_EXTRA_3                                0x497 // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x497
+#define FLAG_ITEM_ROUTE_104_EXTRA_4                                0x498 // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x498
+#define FLAG_ITEM_ROUTE_104_EXTRA_5                                0x499 // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x499
+#define FLAG_ITEM_ROUTE_104_EXTRA_6                                0x49A // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x49A
+#define FLAG_ITEM_ROUTE_104_EXTRA_7                                0x49B // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x49B
+#define FLAG_ITEM_ROUTE_104_EXTRA_8                                0x49C // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x49C
+#define FLAG_ITEM_ROUTE_104_EXTRA_9                                0x49D // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x49D
+#define FLAG_ITEM_ROUTE_104_EXTRA_10                               0x49E // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x49E
+#define FLAG_ITEM_ROUTE_115_EXTRA_1                                0x49F // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x49F
+#define FLAG_ITEM_ROUTE_115_EXTRA_2                                0x4A0 // Item ball added over a removed tree; repurposed from FLAG_UNUSED_0x4A0
 #define FLAG_UNUSED_0x4A1                                           0x4A1 // Unused Flag
 #define FLAG_UNUSED_0x4A2                                           0x4A2 // Unused Flag
 #define FLAG_UNUSED_0x4A3                                           0x4A3 // Unused Flag

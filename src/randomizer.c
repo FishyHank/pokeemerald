@@ -1241,11 +1241,16 @@ const struct LevelUpMove *Randomizer_GetLevelUpLearnset(enum Species species)
 
 // Every visible item ball is an object event whose flag is a FLAG_ITEM_*, and
 // those run from FLAG_ITEM_ROUTE_102_POTION (0x3E8) to
-// FLAG_ITEM_SAFARI_ZONE_SOUTH_EAST_BIG_PEARL (0x492). That's a 171-wide range
-// holding 162 real item balls, only 156 of which are randomizable, so the raw
-// flag value is NOT a usable dense index - see sExcludedFieldItemFlags below.
+// FLAG_ITEM_ROUTE_115_EXTRA_2 (0x4A0). That's a 185-wide range holding 176 real
+// item balls, only 170 of which are randomizable, so the raw flag value is NOT
+// a usable dense index - see sExcludedFieldItemFlags below.
+//
+// 0x493-0x4A0 are 14 flags added for item balls placed over removed trees on
+// Routes 102/104/115. They MUST stay contiguous with the vanilla block: the
+// dense index is an offset within this span, and a ball whose flag falls
+// outside it silently keeps its vanilla contents instead of being randomized.
 #define FIELD_ITEM_FLAG_FIRST FLAG_ITEM_ROUTE_102_POTION
-#define FIELD_ITEM_FLAG_LAST  FLAG_ITEM_SAFARI_ZONE_SOUTH_EAST_BIG_PEARL
+#define FIELD_ITEM_FLAG_LAST  FLAG_ITEM_ROUTE_115_EXTRA_2
 #define FIELD_ITEM_FLAG_SPAN  (FIELD_ITEM_FLAG_LAST - FIELD_ITEM_FLAG_FIRST + 1)
 
 // Ids inside that range which take no part in the randomization, and - just as
@@ -1269,10 +1274,12 @@ const struct LevelUpMove *Randomizer_GetLevelUpLearnset(enum Species species)
 //       which gate that dungeon's progression. Their contents must survive
 //       untouched, so they can't be TM winners either.
 //
-// Verified against data/maps/ *.json: 162 object events use a FLAG_ITEM_* flag,
-// all OBJ_EVENT_GFX_ITEM_BALL running Common_EventScript_FindItem; 6 of those
-// hold key items, leaving FIELD_ITEM_SLOT_COUNT randomizable. Re-derive both
-// lists if item balls are added to, removed from, or re-stocked in the maps.
+// Verified against data/maps/ *.json: 176 object events use a FLAG_ITEM_* flag,
+// each one a DISTINCT flag; 6 of those hold key items, leaving
+// FIELD_ITEM_SLOT_COUNT randomizable. Re-derive both lists if item balls are
+// added to, removed from, or re-stocked in the maps - and check for duplicate
+// flags at the same time, since Porymap's Duplicate copies the flag field and
+// two balls sharing one flag collapse into a single slot.
 static const u16 sExcludedFieldItemFlags[] =
 {
     // Dead ids.
@@ -1520,8 +1527,10 @@ static bool32 IsKeyItem(enum Item item)
     return item < ITEMS_COUNT && gItemsInfo[item].importance != 0;
 }
 
-// allowTMs is FALSE for visible item balls: if an ordinary ball could roll a
-// TM, the guaranteed count would no longer be exact.
+// allowTMs lets a roll land on a TM. Visible item balls pass TRUE: the
+// guaranteed set is produced by the ranking, not by keeping TMs out of the
+// pool, so ordinary balls rolling TMs adds duplicate copies without changing
+// the count of distinct guaranteed ones.
 static bool32 IsItemValidRandomizerPick(enum Item item, bool32 allowTMs)
 {
     if (item == ITEM_NONE || item >= ITEMS_COUNT)
@@ -1622,7 +1631,11 @@ enum Item Randomizer_GetFieldItem(u32 flagId, enum Item vanillaItem)
     if (rank < RANDOMIZER_GUARANTEED_TM_COUNT)
         return GetShuffledTM(rank);
 
-    return PickRandomItem(RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_FIELD_ITEM, slotIndex), FALSE);
+    // TRUE, so an ordinary ball may also roll a TM. The GUARANTEED_TM_COUNT
+    // distinct TMs still come from the ranked slots above; these are extra
+    // copies on top, which the player asked for - a second Earthquake is
+    // useful, not a wasted slot.
+    return PickRandomItem(RANDOMIZER_SLOT_ID(RANDOMIZER_DOMAIN_FIELD_ITEM, slotIndex), TRUE);
 }
 
 enum Item Randomizer_GetHiddenItem(u32 flagId, enum Item vanillaItem)

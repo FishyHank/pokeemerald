@@ -109,12 +109,19 @@ enum Move Randomizer_GetTMMove(u32 tmIndex);
 // Number of visible item ball slots in the game. Every one is an object event
 // carrying a unique FLAG_ITEM_* flag, which is what gives each ball a stable
 // identity to hash. Verified against data/maps/ - see randomizer.c.
-#define FIELD_ITEM_SLOT_COUNT 156
+//
+// A ball sharing another ball's flag is a map bug, not a supported case: the
+// flag is also the "already collected" marker, so twins vanish together and
+// hash to one slot. Re-run the audit after adding balls in Porymap, whose
+// Duplicate copies the flag field.
+#define FIELD_ITEM_SLOT_COUNT 170
 
 // Returns the item a visible overworld item ball should contain, given the
 // FLAG_ITEM_* flag that identifies that ball. Exactly
 // RANDOMIZER_GUARANTEED_TM_COUNT of the FIELD_ITEM_SLOT_COUNT balls contain a
-// TM, and those TMs are all distinct; the rest roll a non-TM, non-key item.
+// TM, and those TMs are all distinct. The remaining balls roll freely and MAY
+// also land on a TM, so a seed can hold several copies of the same one - that
+// is deliberate, not a leak in the guarantee.
 // Key items are passed through untouched so progression can't be broken.
 enum Item Randomizer_GetFieldItem(u32 flagId, enum Item vanillaItem);
 
