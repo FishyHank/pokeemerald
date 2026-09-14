@@ -899,7 +899,8 @@ LittlerootTown_EventScript_GiveRunningShoes::
 	waitfanfare
 	setflag FLAG_RECEIVED_RUNNING_SHOES
 	msgbox LittlerootTown_Text_ExplainRunningShoes, MSGBOX_DEFAULT
-	@ Mom explains the custom Key Items, the starting balls and the Macro Bike.
+	@ Mom introduces the BAG, then each custom Key Item is shown with the standard
+	@ obtained-item display rather than being narrated.
 	@ Placed HERE rather than in the moving-in scene for two reasons: the player
 	@ has a Pokemon and a Pokedex by now, so balls and the Encounter Log actually
 	@ mean something; and Quickstart_SkipIntroToRoute101 skips the moving-in
@@ -908,12 +909,45 @@ LittlerootTown_EventScript_GiveRunningShoes::
 	@ She only NARRATES - NewGameInitData grants all of it, because a Nuzlocke's
 	@ first catchable encounter can come before the player ever walks back here.
 	msgbox LittlerootTown_Text_MomPackedYourBag, MSGBOX_DEFAULT
-	msgbox LittlerootTown_Text_MomExplainsBikeAndHeal, MSGBOX_DEFAULT
-	msgbox LittlerootTown_Text_MomExplainsPCAndCord, MSGBOX_DEFAULT
-	msgbox LittlerootTown_Text_MomExplainsRepelAndLog, MSGBOX_DEFAULT
-	msgbox LittlerootTown_Text_ComeHomeIfAnythingHappens, MSGBOX_DEFAULT
 	closemessage
+	@ The three boxes that used to describe the Key Items one by one are replaced
+	@ by the standard obtained-item display for each - icon plus the item's own
+	@ description from src/data/items.h, so there is no second copy of the text to
+	@ keep in sync. Needs OW_SHOW_ITEM_DESCRIPTIONS (include/config/overworld.h);
+	@ with it OFF these calls degrade to just the "obtained" message.
+	@ Order matches the order Mom used to describe them in.
+	setvar VAR_0x8006, ITEM_BICYCLE
+	call LittlerootTown_EventScript_MomShowKeyItem
+	setvar VAR_0x8006, ITEM_PARTY_HEAL
+	call LittlerootTown_EventScript_MomShowKeyItem
+	setvar VAR_0x8006, ITEM_POKEMON_BOX_LINK
+	call LittlerootTown_EventScript_MomShowKeyItem
+	setvar VAR_0x8006, ITEM_LINKING_CORD
+	call LittlerootTown_EventScript_MomShowKeyItem
+	setvar VAR_0x8006, ITEM_INFINITE_REPEL
+	call LittlerootTown_EventScript_MomShowKeyItem
+	setvar VAR_0x8006, ITEM_ENCOUNTER_LOG
+	call LittlerootTown_EventScript_MomShowKeyItem
 	delay 30
+	return
+
+@ Shows one key item exactly the way finding one in the field does, but WITHOUT
+@ adding it: NewGameInitData already granted all six, deliberately, so that a
+@ Quickstart save that skips this scene still has them.
+@
+@ ScriptShowItemDescription (src/overworld.c) reads the item from
+@ gSpecialVar_0x8006, which is what the callers above set. STR_VAR_1 is left
+@ alone on purpose - showitemdescription writes the description into it.
+LittlerootTown_EventScript_MomShowKeyItem::
+	bufferitemnameplural STR_VAR_2, VAR_0x8006, 1
+	playfanfare MUS_OBTAIN_ITEM
+	message gText_ObtainedTheItem
+	delay 10
+	showitemdescription
+	waitfanfare
+	waitmessage
+	waitbuttonpress
+	hideitemdescription
 	return
 
 LittlerootTown_Text_OurNewHomeLetsGoInside:
@@ -964,44 +998,6 @@ LittlerootTown_Text_MomPackedYourBag:
 	.string "Sell them if you're ever short!\p"
 	.string "Everything else is tucked away in\n"
 	.string "your KEY ITEMS POCKET.$"
-
-LittlerootTown_Text_MomExplainsBikeAndHeal:
-	.string "That MACRO BIKE was DAD's idea.\n"
-	.string "It's a MACH and an ACRO in one!\p"
-	.string "Ride in a straight line and it speeds\n"
-	.string "up on its own. Hold the B Button\l"
-	.string "to pull off BIKE tricks.\p"
-	.string "The PARTY HEAL is a POKé CENTER you\n"
-	.string "can carry. It restores HP, PP and\l"
-	.string "status for your whole team.$"
-
-LittlerootTown_Text_MomExplainsPCAndCord:
-	.string "The PC LINK opens your POKéMON\n"
-	.string "STORAGE from anywhere at all.\p"
-	.string "And that LINKING CORD? Some POKéMON\n"
-	.string "only evolve by being traded.\l"
-	.string "The cord does that for you.\p"
-	.string "It never wears out, so use it as\n"
-	.string "often as you need!$"
-
-LittlerootTown_Text_MomExplainsRepelAndLog:
-	.string "The REPEL TOGGLE switches wild\n"
-	.string "POKéMON off and on whenever you\l"
-	.string "please. No more running away!\p"
-	.string "And the ENCOUNTER LOG keeps track of\n"
-	.string "every area and whether you've used\l"
-	.string "up its encounter yet.\p"
-	.string "Take good care of them, {PLAYER}!$"
-
-LittlerootTown_Text_ComeHomeIfAnythingHappens:
-	.string "… … … … … … … …\n"
-	.string "… … … … … … … …\p"
-	.string "To think that you have your very own\n"
-	.string "POKéMON now…\l"
-	.string "Your father will be overjoyed.\p"
-	.string "…But please be careful.\n"
-	.string "If anything happens, you can come home.\p"
-	.string "Go on, go get them, honey!$"
 
 LittlerootTown_Text_CanUsePCToStoreItems:
 	.string "If you use a PC, you can store items\n"

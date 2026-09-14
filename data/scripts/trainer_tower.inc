@@ -288,7 +288,7 @@ TrainerTower_Roof_EventScript_ReceivePrize:
 	waitfanfare
 	waitmessage
 	bufferstdstring STR_VAR_3, STDSTRING_ITEMS
-	msgbox gText_PutItemInPocket
+	waitbuttonpress
 	call EventScript_RestorePrevTextColor
 	goto TrainerTower_Roof_EventScript_CheckFinalTime
 

@@ -63,7 +63,11 @@ EventScript_ContinueObtainedItem:
 	delay 10
 	showitemdescription
 	waitfanfare
-	msgbox gText_PutItemInPocket, MSGBOX_DEFAULT
+	@ The "put it in the POCKET" box is dropped for speed. waitmessage +
+	@ waitbuttonpress replace the wait it used to provide - without them the
+	@ obtained message and the description box would flash past unread.
+	waitmessage
+	waitbuttonpress
 	hideitemdescription
 	setvar VAR_RESULT, TRUE
 	return
@@ -136,7 +140,9 @@ EventScript_PickUpItem::
 	bufferitemnameplural STR_VAR_2, VAR_0x8004, VAR_0x8005
 	pyramid_getlocation
 	goto_if_eq VAR_RESULT, PYRAMID_LOCATION_FLOOR, EventScript_PutBattlePyramidItemInBag
-	msgbox gText_PutItemInPocket, MSGBOX_DEFAULT
+	@ Pocket box dropped; waitmessage above already ran, so only the button
+	@ wait is needed here.
+	waitbuttonpress
 	hideitemdescription
 	return
 
@@ -224,7 +230,7 @@ EventScript_PutHiddenItemInPocket::
 	waitfanfare
 	bufferitemnameplural STR_VAR_2, VAR_0x8004, 1
 	copyvar VAR_0x8004, VAR_0x8008
-	msgbox gText_PutItemInPocket, MSGBOX_DEFAULT
+	waitbuttonpress
 	hideitemdescription
 	special TryPutTreasureInvestigatorsOnAir
 	special SetHiddenItemFlag

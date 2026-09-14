@@ -23,7 +23,11 @@
 #define OW_ITEM_DESCRIPTIONS_OFF        0   // never show descriptions
 #define OW_ITEM_DESCRIPTIONS_FIRST_TIME 1   // show first time (** SAVE-BREAKING - see struct SaveBlock3 **)
 #define OW_ITEM_DESCRIPTIONS_ALWAYS     2   // always show description
-#define OW_SHOW_ITEM_DESCRIPTIONS       OW_ITEM_DESCRIPTIONS_OFF    // If enabled, item descriptions/images will be shown when finding items.
+#define OW_SHOW_ITEM_DESCRIPTIONS       OW_ITEM_DESCRIPTIONS_ALWAYS // Item icon + description shown on every pickup.
+// ALWAYS rather than FIRST_TIME deliberately: FIRST_TIME relies on the
+// SaveBlock3 itemFlags bitfield and is save-breaking, and with randomized
+// item balls the description is worth seeing every time. Mom's six starting
+// key items reuse this same display - see data/maps/LittlerootTown/scripts.inc.
 
 // These generational defines only make a distinction for Berries and the OW_PC_MOVE_ORDER
 #define GEN_6_XY GEN_6
